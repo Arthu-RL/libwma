@@ -1,7 +1,7 @@
 #include <iostream>
 #include <memory>
 
-#include "../../include/wma/WMA.hpp"
+#include "../../include/wma/wma.hpp"
 
 int main() {
     try {

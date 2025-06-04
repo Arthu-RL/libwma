@@ -1,4 +1,5 @@
 #pragma once
+
 #ifndef WMA_CORE_TYPES_HPP
 #define WMA_CORE_TYPES_HPP
 

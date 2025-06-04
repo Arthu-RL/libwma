@@ -1,4 +1,4 @@
-#include "wma/WMA.hpp"
+#include "wma/wma.hpp"
 #include "wma/exceptions/WMAException.hpp"
 
 namespace wma {

@@ -19,9 +19,9 @@ option(WMA_ENABLE_SDL "Enable SDL2 backend" ON)
 option(WMA_ENABLE_VULKAN "Enable Vulkan support" OFF)
 option(WMA_ENABLE_OPENGL "Enable OpenGL support" ON)
 option(WMA_ENABLE_SOFTWARE "Enable CPU support" ON)
-option(WMA_BUILD_EXAMPLES "Build example applications" ON)
+option(WMA_BUILD_EXAMPLES "Build example applications" OFF)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
-option(WMA_BUILD_TESTS "Build unit tests" ON)
+option(WMA_BUILD_TESTS "Build unit tests" OFF)
 
 # Validate options
 if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL)
@@ -53,10 +53,10 @@ file(GLOB_RECURSE SOURCES
 )
 
 set(WMA_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/WMA.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/wma.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/managers/IWindowManager.hpp
     ${HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/WMA.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/wma.cpp
     ${SOURCES}
 )
 
@@ -218,9 +218,9 @@ if(WMA_BUILD_EXAMPLES)
 
     # Basic window example
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_window/main.cpp")
-        add_executable(wma_basic_window examples/basic_window/main.cpp)
-        target_link_libraries(wma_basic_window PRIVATE ${PROJECT_NAME})
-        set_target_properties(wma_basic_window PROPERTIES
+        add_executable(basic_window examples/basic_window/main.cpp)
+        target_link_libraries(basic_window PRIVATE ${PROJECT_NAME})
+        set_target_properties(basic_window PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
         )
         message(STATUS "  - Basic window example: Enabled")
@@ -228,9 +228,9 @@ if(WMA_BUILD_EXAMPLES)
 
     # Input handling example (keyboard + mouse)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/input_handling/main.cpp")
-        add_executable(wma_input_handling examples/input_handling/main.cpp)
-        target_link_libraries(wma_input_handling PRIVATE ${PROJECT_NAME})
-        set_target_properties(wma_input_handling PROPERTIES
+        add_executable(input_handling examples/input_handling/main.cpp)
+        target_link_libraries(input_handling PRIVATE ${PROJECT_NAME})
+        set_target_properties(input_handling PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
         )
         message(STATUS "  - Input handling example: Enabled")
@@ -238,11 +238,11 @@ if(WMA_BUILD_EXAMPLES)
 
     # Create examples target
     add_custom_target(wma_examples)
-    if(TARGET wma_basic_window)
-        add_dependencies(wma_examples wma_basic_window)
+    if(TARGET basic_window)
+        add_dependencies(wma_examples basic_window)
     endif()
-    if(TARGET wma_input_handling)
-        add_dependencies(wma_examples wma_input_handling)
+    if(TARGET input_handling)
+        add_dependencies(wma_examples input_handling)
     endif()
 endif()
 
@@ -297,11 +297,10 @@ install(FILES
 )
 
 if(WMA_AUTO_INSTALL)
-    message(STATUS "Auto-install enabled: Library will be installed after each build")
     add_custom_command(
         TARGET ${PROJECT_NAME}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} --build . --target install
+        COMMAND ${CMAKE_COMMAND} --install .
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Auto-installing ${PROJECT_NAME} library..."
     )

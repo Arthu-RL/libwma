@@ -1,4 +1,4 @@
-// #include <wma/WMA.hpp>
+// #include <wma/wma.hpp>
 // #include <iostream>
 // #include <iomanip>
 // #include <sstream>

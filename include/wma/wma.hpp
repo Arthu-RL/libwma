@@ -1,9 +1,9 @@
-#ifndef WMA_HPP
-#define WMA_HPP
+#ifndef WMA_H
+#define WMA_H
 
 /**
- * @file WMA.hpp
- * @brief Main header for WMA cross-platform window management library
+ * @file wma.hpp
+ * @brief Main header for WMA cross-platform window management Abstraction library
  * 
  * WMA provides a unified interface for window management across different
  * backends (GLFW/SDL2) and graphics APIs (Vulkan/OpenGL).
@@ -82,4 +82,4 @@ namespace wma {
 
 } // namespace wma
 
-#endif // WMA_HPP
+#endif // WMA_H
