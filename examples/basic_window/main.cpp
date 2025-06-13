@@ -1,13 +1,10 @@
-#include <iostream>
+#include <ink/Inkogger.h>
 #include <memory>
 
 #include "../../include/wma/wma.hpp"
 
 int main() {
     try {
-        // Print library information
-        std::cout << wma::getLibraryInfo() << std::endl;
-
         // Configure window
         wma::WindowDetails windowConfig(1280, 720, true, 60);
 
@@ -15,7 +12,7 @@ int main() {
         auto windowManager = wma::createWindowManager(
             wma::getDefaultBackend(),
             windowConfig,
-            wma::GraphicsAPI::Vulkan
+            wma::GraphicsAPI::CPU
         );
 
         // Create the window
@@ -26,14 +23,14 @@ int main() {
         
         // Add escape key to close window
         keyboard.addKeyAction(27, wma::KeyAction{
-            []() { std::cout << "Escape pressed - closing window\n"; },
+            []() { INK_LOG << "Escape pressed - closing window\n"; },
             nullptr
         });
 
         // Add some debug keys
         keyboard.addKeyAction(32, wma::KeyAction{ // Spacebar
-            []() { std::cout << "Space pressed\n"; },
-            []() { std::cout << "Space released\n"; }
+            []() { INK_LOG << "Space pressed\n"; },
+            []() { INK_LOG << "Space released\n"; }
         });
 
         // Variable to track state
@@ -48,7 +45,7 @@ int main() {
             // Print FPS every 60 frames
             if (frameCount % 60 == 0) {
                 auto* flags = windowManager->getWindowFlags();
-                std::cout << "Frame: " << flags->frameCounter 
+                INK_LOG << "Frame: " << flags->frameCounter
                          << " | FPS: " << flags->fps 
                          << " | Delta: " << flags->deltaTime << "ms\n";
             }
@@ -56,7 +53,7 @@ int main() {
             // Handle window resize
             auto* flags = windowManager->getWindowFlags();
             if (flags->resized) {
-                std::cout << "Window resized!\n";
+                INK_LOG << "Window resized!\n";
                 flags->resetFrameFlags();
             }
 
@@ -68,13 +65,13 @@ int main() {
             }
         });
 
-        std::cout << "Window closed successfully. Total frames: " << frameCount << std::endl;
+        INK_LOG << "Window closed successfully. Total frames: " << frameCount << '\n';
 
     } catch (const wma::WMAException& e) {
-        std::cerr << "wma Error: " << e.what() << std::endl;
+        INK_LOG << "wma Error: " << e.what() << '\n';
         return -1;
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        INK_LOG << "Error: " << e.what() << '\n';
         return -1;
     }
 

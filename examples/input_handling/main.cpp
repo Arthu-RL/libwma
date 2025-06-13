@@ -811,8 +811,8 @@
 //     MouseGesture currentGesture_;
 // };
 
-// int main() {
-//     InputDemo demo;
-//     demo.run();
-//     return 0;
-// }
+int main() {
+    // InputDemo demo;
+    // demo.run();
+    return 0;
+}
