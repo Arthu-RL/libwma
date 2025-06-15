@@ -1,11 +1,11 @@
-#pragma once
 #ifndef WMA_INPUT_KEYBOARD_LISTENER_HPP
 #define WMA_INPUT_KEYBOARD_LISTENER_HPP
 
+#include <ink/ink_base.hpp>
 #include <unordered_map>
 #include <memory>
+
 #include "KeyAction.hpp"
-#include "../core/Types.hpp"
 
 // Forward declarations
 struct GLFWwindow;

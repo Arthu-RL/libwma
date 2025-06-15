@@ -2,7 +2,7 @@
 #define WMA_INPUT_MOUSE_ACTION_HPP
 
 #include <functional>
-#include "../core/Types.hpp"
+#include <ink/ink_base.hpp>
 
 namespace wma {
 

@@ -1,8 +1,7 @@
-#pragma once
 #ifndef WMA_CORE_WINDOW_FLAGS_HPP
 #define WMA_CORE_WINDOW_FLAGS_HPP
 
-#include "Types.hpp"
+#include <ink/ink_base.hpp>
 
 namespace wma {
 

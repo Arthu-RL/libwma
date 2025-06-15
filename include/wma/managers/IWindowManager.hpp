@@ -1,6 +1,5 @@
-#pragma once
-#ifndef wma_MANAGERS_IWINDOW_MANAGER_HPP
-#define wma_MANAGERS_IWINDOW_MANAGER_HPP
+#ifndef WMA_MANAGERS_IWINDOW_MANAGER_HPP
+#define WMA_MANAGERS_IWINDOW_MANAGER_HPP
 
 #include <functional>
 #include <vector>
@@ -96,4 +95,4 @@ namespace wma {
 
 } // namespace wma
 
-#endif // wma_MANAGERS_IWINDOW_MANAGER_HPP
+#endif // WMA_MANAGERS_IWINDOW_MANAGER_HPP

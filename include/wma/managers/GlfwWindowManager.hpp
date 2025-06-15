@@ -4,8 +4,6 @@
 #include <memory>
 
 #include "IWindowManager.hpp"
-#include "../exceptions/WMAException.hpp"
-#include "../core/FrameTimer.hpp"
 
 // Forward declarations
 struct GLFWwindow;
@@ -72,8 +70,7 @@ namespace wma {
         std::unique_ptr<GlfwUserData> userData_;
         bool windowShouldClose_;
         
-        // Event handling
-        void processEvents();
+        // Event handling;
         static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
         static void windowFocusCallback(GLFWwindow* window, int focused);
         static void windowIconifyCallback(GLFWwindow* window, int iconified);

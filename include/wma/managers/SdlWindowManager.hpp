@@ -2,9 +2,7 @@
 #define WMA_MANAGERS_SDL_WINDOW_MANAGER_HPP
 
 #include "IWindowManager.hpp"
-#include "../exceptions/WMAException.hpp"
 #include <memory>
-#include <chrono>
 
 // Forward declarations
 struct SDL_Window;

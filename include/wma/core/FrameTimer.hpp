@@ -3,8 +3,8 @@
 
 #include <thread>
 #include <chrono>
+#include <ink/ink_base.hpp>
 
-#include "Types.hpp"
 #include "WindowFlags.hpp"
 
 #define LIMIT_TARGET_FPS_TOLERANCE 1e-5

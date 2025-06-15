@@ -2,6 +2,9 @@
 #include "wma/exceptions/WMAException.hpp"
 #include "wma/input/KeyboardListener.hpp"
 
+#include <ink/InkAssert.h>
+#include <ink/Inkogger.h>
+
 #ifdef WMA_ENABLE_GLFW
     #include <GLFW/glfw3.h>
 #endif
@@ -131,10 +134,11 @@ namespace wma {
     }
 
     void MouseListener::glfwCursorPosCallback(GLFWwindow* window, f64 xpos, f64 ypos) {
+        if (!window) return;
         auto* listener = getInstanceFromGLFW(window);
-        if (listener) {
-            listener->handleGLFWPositionEvent(xpos, ypos);
-        }
+
+        INK_ASSERT(listener);
+        listener->handleGLFWPositionEvent(xpos, ypos);
     }
 
     void MouseListener::glfwScrollCallback(GLFWwindow* window, f64 xoffset, f64 yoffset) {
@@ -146,6 +150,8 @@ namespace wma {
 
     MouseListener* MouseListener::getInstanceFromGLFW(GLFWwindow* window) {
         // Get the user data structure that contains all instances
+        INK_ASSERT(window);
+
         struct GlfwUserData {
             void* windowManager;
             KeyboardListener* keyboardListener;
@@ -153,7 +159,7 @@ namespace wma {
         };
         
         auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
-        return userData ? userData->mouseListener : nullptr;
+        return userData->mouseListener;
     }
 
     void MouseListener::updateCursorStateGLFW() {

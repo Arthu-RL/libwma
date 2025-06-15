@@ -1,11 +1,9 @@
-#pragma once
 #ifndef WMA_INPUT_MOUSE_LISTENER_HPP
 #define WMA_INPUT_MOUSE_LISTENER_HPP
 
 #include <unordered_map>
 #include <memory>
 #include "MouseAction.hpp"
-#include "../core/Types.hpp"
 
 // Forward declarations
 struct GLFWwindow;

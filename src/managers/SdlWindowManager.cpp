@@ -1,11 +1,11 @@
 #include "wma/managers/SdlWindowManager.hpp"
 #include "wma/core/FrameTimer.hpp"
+#include "wma/exceptions/WMAException.hpp"
 
 #ifdef WMA_ENABLE_SDL
 
 #include <SDL2/SDL.h>
 #include <iostream>
-#include <thread>
 
 #ifdef WMA_ENABLE_VULKAN
     #include <SDL2/SDL_vulkan.h>
@@ -129,6 +129,7 @@ namespace wma {
 
         while (!windowShouldClose_) {
             processEvents();
+
             timer.updateDeltaTime();
             windowFlags_.frameCounter++;
             

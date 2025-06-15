@@ -1,5 +1,8 @@
 #include "wma/managers/GlfwWindowManager.hpp"
+#include "wma/exceptions/WMAException.hpp"
 #include "wma/core/FrameTimer.hpp"
+
+#include <ink/Inkogger.h>
 
 #ifdef WMA_ENABLE_GLFW
 
@@ -8,8 +11,6 @@
 #endif
 
 #include <GLFW/glfw3.h>
-#include <iostream>
-
 
 namespace wma {
 
@@ -134,7 +135,7 @@ namespace wma {
         }
 
         // Set window user pointer to this instance
-        glfwSetWindowUserPointer(window_, this);
+        glfwSetWindowUserPointer(window_, userData_.get());
 
         // Set callbacks
         glfwSetFramebufferSizeCallback(window_, framebufferSizeCallback);
@@ -162,11 +163,11 @@ namespace wma {
         mouseListener_->initializeGLFW(window_);
 
         // Add default key bindings
-        keyboardListener_->addKeyAction(GLFW_KEY_ESCAPE, KeyAction{
+        keyboardListener_->addKeyAction(GLFW_KEY_ESCAPE, {
             [this]() { windowShouldClose_ = true; }
         });
 
-        std::cout << "GLFW window created: " << windowName << std::endl;
+        INK_LOG << "GLFW window created: " << windowName;
     }
 
     void GlfwWindowManager::process(std::function<void()>&& actions) {
@@ -174,7 +175,8 @@ namespace wma {
         timer.setTargetFPS(windowDetails_.targetFPS);
 
         while (!windowShouldClose_ && !glfwWindowShouldClose(window_)) {
-            processEvents();
+            glfwPollEvents();
+
             timer.updateDeltaTime();
             windowFlags_.frameCounter++;
             
@@ -240,10 +242,6 @@ namespace wma {
 
     GLFWwindow* GlfwWindowManager::getGLFWWindow() const {
         return window_;
-    }
-
-    void GlfwWindowManager::processEvents() {
-        glfwPollEvents();
     }
 
     void GlfwWindowManager::framebufferSizeCallback(GLFWwindow* window, int width, int height) {
