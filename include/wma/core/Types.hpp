@@ -1,18 +1,25 @@
 #ifndef WMA_CORE_TYPES_HPP
 #define WMA_CORE_TYPES_HPP
 
+#include <ink/ink_base.hpp>
+
 namespace wma {
     // Graphics API enumeration
-    enum class GraphicsAPI {
+    enum GraphicsAPI : i32 {
         OpenGL,
         Vulkan,
         CPU  // Software rendering
     };
 
     // Window backend enumeration
-    enum class WindowBackend {
+    enum WindowBackend : i32 {
         GLFW,
         SDL2
+    };
+
+    enum WmaCode : i32 {
+        OK,
+        ERROR
     };
 
 } // namespace wma

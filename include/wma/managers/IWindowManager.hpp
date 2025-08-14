@@ -82,6 +82,12 @@ namespace wma {
          * @return The graphics API type
          */
         virtual GraphicsAPI getGraphicsAPI() const = 0;
+
+        /**
+         * @brief DESTROY WMA WINDOW
+         * @return WmaCode info (success or failure code)
+         */
+        virtual WmaCode destroy() = 0;
         
     protected:
         // Protected constructor to prevent direct instantiation

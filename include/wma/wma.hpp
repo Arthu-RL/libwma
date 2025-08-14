@@ -23,6 +23,7 @@
 #include "exceptions/WMAException.hpp"
 
 // Input handling
+#include "input/Keys.h"
 #include "input/KeyAction.hpp"
 #include "input/KeyboardListener.hpp"
 

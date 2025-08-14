@@ -40,10 +40,7 @@ namespace wma {
     }
 
     GlfwWindowManager::~GlfwWindowManager() {
-        if (window_) {
-            glfwDestroyWindow(window_);
-        }
-        glfwTerminate();
+        destroy();
     }
 
     GlfwWindowManager::GlfwWindowManager(GlfwWindowManager&& other) noexcept
@@ -82,11 +79,16 @@ namespace wma {
             windowShouldClose_ = other.windowShouldClose_;
 
             other.window_ = nullptr;
-            
+
             if (userData_) {
+
                 userData_->windowManager = this;
                 userData_->keyboardListener = keyboardListener_.get();
                 userData_->mouseListener = mouseListener_.get();
+
+                if (window_) {
+                    glfwSetWindowUserPointer(window_, userData_.get());
+                }
             }
         }
         return *this;
@@ -162,11 +164,6 @@ namespace wma {
         keyboardListener_->initializeGLFW(window_);
         mouseListener_->initializeGLFW(window_);
 
-        // Add default key bindings
-        keyboardListener_->addKeyAction(GLFW_KEY_ESCAPE, {
-            [this]() { windowShouldClose_ = true; }
-        });
-
         INK_LOG << "GLFW window created: " << windowName;
     }
 
@@ -176,6 +173,8 @@ namespace wma {
 
         while (!windowShouldClose_ && !glfwWindowShouldClose(window_)) {
             glfwPollEvents();
+
+            mouseListener_->processPendingEvents();
 
             timer.updateDeltaTime();
             windowFlags_.frameCounter++;
@@ -286,6 +285,20 @@ namespace wma {
     GlfwWindowManager* GlfwWindowManager::getInstanceFromWindow(GLFWwindow* window) {
         auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
         return userData ? userData->windowManager : nullptr;
+    }
+
+    WmaCode GlfwWindowManager::destroy()
+    {
+        windowShouldClose_ = true;
+
+        if (window_ != nullptr) {
+            glfwDestroyWindow(window_);
+            window_ = nullptr;
+        }
+
+        glfwTerminate();
+
+        return WmaCode::OK;
     }
 
 } // namespace wma

@@ -1,7 +1,8 @@
 #ifndef FRAMETIMER_H
 #define FRAMETIMER_H
 
-#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <chrono>
 #include <ink/ink_base.hpp>
 
@@ -14,58 +15,56 @@ namespace wma {
 class FrameTimer {
 public:
     WindowFlags& windowFlags_;
-   std::chrono::duration<f64, std::milli> targetFrameTime_{16.666}; // Example: ~60 FPS (1000ms / 60 ≈ 16.66ms)
 
-    FrameTimer(WindowFlags& wFlags) : windowFlags_(wFlags), lastFrameTime_(std::chrono::high_resolution_clock::now()) {
-        // Initialize targetFrameTime_ based on desired FPS, e.g., setTargetFPS(60);
-    }
+    // Ex: ~60 FPS (1000ms / 60 ≈ 16.66ms)
+    std::chrono::duration<f64, std::milli> targetFrameTime_{16.666};
+
+    FrameTimer(WindowFlags& wFlags)
+        : windowFlags_(wFlags),
+        lastFrameTime_(std::chrono::high_resolution_clock::now()),
+        frameStartTime_(lastFrameTime_) {}
 
     void setTargetFPS(unsigned int fps) {
         if (fps > 0) {
             targetFrameTime_ = std::chrono::duration<f64, std::milli>(1000.0 / fps);
         } else {
-            targetFrameTime_ = std::chrono::duration<f64, std::milli>(0); // Effectively no limit or handle as error
+            targetFrameTime_ = std::chrono::duration<f64, std::milli>(0.0); // Sem limite
         }
     }
 
     /**
-     * @brief Call this at the START of your game loop.
-     * Calculates deltaTime and FPS based on the previous frame.
-     * Sets up lastFrameTime_ for the current frame's work measurement.
+     * @brief Chame no início do loop principal. Calcula deltaTime e FPS.
      */
     void updateDeltaTime() {
-        std::chrono::time_point currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<f64, std::milli> elapsed = currentTime - lastFrameTime_;
+        frameStartTime_ = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<f64, std::milli> elapsed = frameStartTime_ - lastFrameTime_;
 
         windowFlags_.deltaTime = INK_MAX(elapsed.count(), LIMIT_TARGET_FPS_TOLERANCE);
-
         windowFlags_.fps = 1000.0 / windowFlags_.deltaTime;
 
-        lastFrameTime_ = currentTime;
+        lastFrameTime_ = frameStartTime_;
     }
 
     /**
-     * @brief Call this at the END of your game loop, after all processing and rendering.
-     * Sleeps if the frame work completed faster than targetFrameTime_.
+     * @brief Chame no final do loop principal. Dorme se o frame terminar antes do tempo alvo.
      */
     void limitFrameRate() {
-        std::chrono::high_resolution_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<f64, std::milli> frameWorkMs = std::chrono::duration<f64, std::milli>(currentTime - lastFrameTime_);
+        std::chrono::duration<f64, std::milli> remaining = targetFrameTime_ - (std::chrono::high_resolution_clock::now() - frameStartTime_);
 
-        if (frameWorkMs < targetFrameTime_ && targetFrameTime_.count() > 0.0) {
-            std::chrono::milliseconds sleepDuration = std::chrono::duration_cast<std::chrono::milliseconds>(targetFrameTime_ - frameWorkMs);
-
-            if (sleepDuration.count() > 0) {
-                std::this_thread::sleep_for(sleepDuration);
-            }
+        if (remaining.count() > 0.0) {
+            std::unique_lock lock(mt_);
+            cv_.wait_for(lock, remaining);
         }
     }
 
 private:
     std::chrono::high_resolution_clock::time_point lastFrameTime_;
+    std::chrono::high_resolution_clock::time_point frameStartTime_;
+
+    std::mutex mt_;
+    std::condition_variable cv_;
 };
 
 }
-
 
 #endif // FRAMETIMER_H

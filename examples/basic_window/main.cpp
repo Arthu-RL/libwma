@@ -22,13 +22,13 @@ int main() {
         auto& keyboard = windowManager->getKeyboardListener();
         
         // Add escape key to close window
-        keyboard.addKeyAction(27, wma::KeyAction{
-            []() { INK_LOG << "Escape pressed - closing window\n"; },
+        keyboard.addKeyAction(wma::Key::KEY_ESCAPE, wma::KeyAction {
+            [&]() { windowManager->destroy(); INK_LOG << "Escape pressed - closing window\n"; },
             nullptr
         });
 
         // Add some debug keys
-        keyboard.addKeyAction(32, wma::KeyAction{ // Spacebar
+        keyboard.addKeyAction(wma::Key::KEY_SPACE, wma::KeyAction {
             []() { INK_LOG << "Space pressed\n"; },
             []() { INK_LOG << "Space released\n"; }
         });
@@ -41,7 +41,7 @@ int main() {
         windowManager->process([&]() {
             // Your rendering/update code goes here
             frameCount++;
-            
+
             // Print FPS every 60 frames
             if (frameCount % 60 == 0) {
                 auto* flags = windowManager->getWindowFlags();

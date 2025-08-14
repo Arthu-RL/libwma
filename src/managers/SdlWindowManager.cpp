@@ -31,10 +31,7 @@ namespace wma {
     }
 
     SdlWindowManager::~SdlWindowManager() {
-        if (window_) {
-            SDL_DestroyWindow(window_);
-        }
-        SDL_Quit();
+        destroy();
     }
 
     SdlWindowManager::SdlWindowManager(SdlWindowManager&& other) noexcept
@@ -114,11 +111,6 @@ namespace wma {
 
         // Initialize keyboard listener
         keyboardListener_->initializeSDL(window_);
-
-        // Add default key bindings
-        keyboardListener_->addKeyAction(SDLK_ESCAPE, KeyAction{
-            [this]() { windowShouldClose_ = true; }
-        });
 
         std::cout << "SDL window created: " << windowName << std::endl;
     }
@@ -285,6 +277,7 @@ namespace wma {
             }
         }
 #endif
+        mouseListener_->setSensitivity(1.0); // Default
     }
 
     u32 SdlWindowManager::getSDLWindowFlags() const {
@@ -312,6 +305,18 @@ namespace wma {
         }
         
         return flags;
+    }
+
+    WmaCode SdlWindowManager::destroy()
+    {
+        windowShouldClose_ = true;
+
+        if (window_) {
+            SDL_DestroyWindow(window_);
+        }
+        SDL_Quit();
+
+        return WmaCode::OK;
     }
 
 } // namespace wma

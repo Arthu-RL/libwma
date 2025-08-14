@@ -53,6 +53,7 @@ namespace wma {
         bool shouldClose() const override;
         WindowBackend getBackendType() const override;
         GraphicsAPI getGraphicsAPI() const override;
+        WmaCode destroy() override;
         
         /**
          * @brief Get raw GLFW window handle

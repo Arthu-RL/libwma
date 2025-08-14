@@ -3,7 +3,6 @@
 
 #include <ink/ink_base.hpp>
 #include <unordered_map>
-#include <memory>
 
 #include "KeyAction.hpp"
 

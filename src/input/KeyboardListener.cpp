@@ -1,4 +1,5 @@
 #include "wma/input/KeyboardListener.hpp"
+#include "wma/input/Keys.h"
 #include "wma/exceptions/WMAException.hpp"
 
 #ifdef WMA_ENABLE_GLFW
@@ -39,7 +40,8 @@ namespace wma {
     }
 
     void KeyboardListener::handleGLFWKeyEvent(i32 key, i32 action) {
-        auto it = keyActions_.find(key);
+        Key mappedKey = mapGLFWKey(key);
+        auto it = keyActions_.find(static_cast<i32>(mappedKey));
         if (it != keyActions_.end()) {
             if (action == GLFW_PRESS) {
                 it->second.executePress();
@@ -72,7 +74,8 @@ namespace wma {
     }
 
     void KeyboardListener::handleSDLKeyEvent(const SDL_KeyboardEvent& keyEvent) {
-        auto it = keyActions_.find(keyEvent.keysym.sym);
+        Key mappedKey = mapSDLKey(keyEvent.keysym.sym);
+        auto it = keyActions_.find(static_cast<i32>(mappedKey));
         if (it != keyActions_.end()) {
             if (keyEvent.type == SDL_KEYDOWN) {
                 it->second.executePress();

@@ -40,8 +40,8 @@ namespace wma {
         using ButtonCallback = std::function<void()>;
         using PositionCallback = std::function<void(const MousePosition&)>;
         using ScrollCallback = std::function<void(const MouseScroll&)>;
-        
-        MouseAction(ButtonCallback onPress = nullptr, 
+
+        MouseAction(ButtonCallback onPress = nullptr,
                    ButtonCallback onRelease = nullptr,
                    PositionCallback onMove = nullptr,
                    ScrollCallback onScroll = nullptr)

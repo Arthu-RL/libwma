@@ -14,10 +14,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Build options
 option(WMA_BUILD_SHARED "Build shared library" OFF)
-option(WMA_ENABLE_GLFW "Enable GLFW backend" ON)
+option(WMA_ENABLE_GLFW "Enable GLFW backend" OFF)
 option(WMA_ENABLE_SDL "Enable SDL2 backend" ON)
 option(WMA_ENABLE_VULKAN "Enable Vulkan support" OFF)
-option(WMA_ENABLE_OPENGL "Enable OpenGL support" ON)
+option(WMA_ENABLE_OPENGL "Enable OpenGL support" OFF)
 option(WMA_ENABLE_SOFTWARE "Enable CPU support" ON)
 option(WMA_BUILD_EXAMPLES "Build example applications" ON)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
@@ -44,6 +44,7 @@ endif()
 file(GLOB_RECURSE HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/core/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/input/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/input/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/exceptions/*.hpp
 )
 
