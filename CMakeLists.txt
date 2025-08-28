@@ -272,7 +272,9 @@ install(TARGETS ${PROJECT_NAME}
 
 install(DIRECTORY include/wma
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING PATTERN "*.hpp"
+    FILES_MATCHING
+        PATTERN "*.hpp"
+        PATTERN "*.h"
 )
 
 if(WMA_BUILD_EXAMPLES)
