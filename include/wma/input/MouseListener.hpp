@@ -3,8 +3,6 @@
 
 #include "wma/input/MouseAction.hpp"
 #include <unordered_map>
-#include <memory>
-#include <mutex>
 
 #ifdef WMA_ENABLE_GLFW
 struct GLFWwindow;
@@ -17,10 +15,33 @@ union SDL_Event;
 
 namespace wma {
 
+struct PendingEvent {
+    enum Type {
+        None = 0,
+        Move,
+        Scroll,
+        ButtonPress,
+        ButtonRelease
+    } type = None;  // Initialize to None
+
+    MousePosition position{};  // Default initialize
+    MouseScroll scroll{};      // Default initialize
+    i32 button = -1;          // Initialize to invalid button
+
+    // Default constructor
+    PendingEvent() = default;
+
+    // Explicit constructors
+    explicit PendingEvent(Type t) : type(t) {}
+    PendingEvent(Type t, const MousePosition& pos) : type(t), position(pos) {}
+    PendingEvent(Type t, const MouseScroll& s) : type(t), scroll(s) {}
+    PendingEvent(Type t, i32 btn) : type(t), button(btn) {}
+};
+
 class MouseListener {
 public:
-    MouseListener() = default;
-    ~MouseListener() = default;
+    MouseListener();
+    ~MouseListener();
 
     // Action management
     void addButtonAction(i32 button, MouseAction action);
@@ -37,8 +58,7 @@ public:
     void setSensitivity(f64 sensitivity);
     f64 getSensitivity() const;
 
-    // Process deferred events - IMPORTANT: Call this from your main loop!
-    void processPendingEvents();
+    void processPendingEvents(const PendingEvent& event);
 
 #ifdef WMA_ENABLE_GLFW
     void initializeGLFW(GLFWwindow* window);
@@ -62,20 +82,6 @@ private:
     bool cursorEnabled_ = true;
     f64 sensitivity_ = 1.0;
     bool firstMouse_ = true;
-
-    // Deferred execution for GLFW
-    struct PendingEvent {
-        enum Type { None, Move, Scroll, ButtonPress, ButtonRelease };
-        Type type = None;
-        MousePosition position;
-        MouseScroll scroll;
-        i32 button = -1;
-    };
-
-    std::vector<PendingEvent> pendingEvents_;
-
-    // Add pending event (thread-safe)
-    void addPendingEvent(const PendingEvent& event);
 
 #ifdef WMA_ENABLE_GLFW
     GLFWwindow* glfwWindow_ = nullptr;

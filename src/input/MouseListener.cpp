@@ -1,6 +1,7 @@
 #include "wma/input/MouseListener.hpp"
 #include "wma/exceptions/WMAException.hpp"
 #include "wma/input/KeyboardListener.hpp"
+#include "wma/core/Types.hpp"
 
 #include <ink/InkAssert.h>
 #include <ink/Inkogger.h>
@@ -16,8 +17,32 @@
 
 namespace wma {
 
+    MouseListener::MouseListener()
+        : currentPosition_{}
+        , lastPosition_{}
+#ifdef WMA_ENABLE_GLFW
+        , glfwWindow_(nullptr)
+#endif
+#ifdef WMA_ENABLE_SDL
+        , sdlWindow_(nullptr)
+#endif
+    {
+        // Empty
+    }
+
+    MouseListener::~MouseListener() {
+#ifdef WMA_ENABLE_GLFW
+        // Clear callbacks if still active
+        if (glfwWindow_) {
+            glfwSetMouseButtonCallback(glfwWindow_, nullptr);
+            glfwSetCursorPosCallback(glfwWindow_, nullptr);
+            glfwSetScrollCallback(glfwWindow_, nullptr);
+        }
+#endif
+    }
+
     void MouseListener::addButtonAction(i32 button, MouseAction action)
-{
+    {
         buttonActions_[button] = std::move(action);
     }
 
@@ -81,52 +106,41 @@ namespace wma {
         return sensitivity_;
     }
 
-    void MouseListener::addPendingEvent(const PendingEvent& event)
+    void MouseListener::processPendingEvents(const PendingEvent& event)
     {
-        pendingEvents_.push_back(event);
-    }
-
-    void MouseListener::processPendingEvents()
-    {
-        // Process events in order
-        for (const auto& event : pendingEvents_)
-        {
-            switch (event.type) {
-            case PendingEvent::Move:
-                if (moveAction_.hasMoveAction()) {
-                    moveAction_.executeMove(event.position);
-                }
-                break;
-
-            case PendingEvent::Scroll:
-                if (scrollAction_.hasScrollAction()) {
-                    scrollAction_.executeScroll(event.scroll);
-                }
-                break;
-
-            case PendingEvent::ButtonPress: {
-                auto it = buttonActions_.find(event.button);
-                if (it != buttonActions_.end()) {
-                    it->second.executePress();
-                }
-                break;
+        switch (event.type) {
+        case PendingEvent::Move:
+            if (moveAction_.hasMoveAction()) {
+                moveAction_.executeMove(event.position);
             }
+            break;
 
-            case PendingEvent::ButtonRelease: {
-                auto it = buttonActions_.find(event.button);
-                if (it != buttonActions_.end()) {
-                    it->second.executeRelease();
-                }
-                break;
+        case PendingEvent::Scroll:
+            if (scrollAction_.hasScrollAction()) {
+                scrollAction_.executeScroll(event.scroll);
             }
+            break;
 
-            case PendingEvent::None:
-            default:
-                break;
+        case PendingEvent::ButtonPress: {
+            auto it = buttonActions_.find(event.button);
+            if (it != buttonActions_.end()) {
+                it->second.executePress();
             }
+            break;
         }
 
-        pendingEvents_.clear();
+        case PendingEvent::ButtonRelease: {
+            auto it = buttonActions_.find(event.button);
+            if (it != buttonActions_.end()) {
+                it->second.executeRelease();
+            }
+            break;
+        }
+
+        case PendingEvent::None:
+        default:
+            break;
+        }
     }
 
 #ifdef WMA_ENABLE_GLFW
@@ -138,18 +152,19 @@ namespace wma {
 
         glfwWindow_ = window;
 
-        // Set callbacks
-        glfwSetMouseButtonCallback(window, glfwMouseButtonCallback);
-        glfwSetCursorPosCallback(window, glfwCursorPosCallback);
-        glfwSetScrollCallback(window, glfwScrollCallback);
-
         // Get initial cursor position
         f64 xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
         currentPosition_ = MousePosition(xpos, ypos);
         lastPosition_ = currentPosition_;
+        firstMouse_ = true;
 
         updateCursorStateGLFW();
+
+        // Set callbacks
+        glfwSetMouseButtonCallback(window, glfwMouseButtonCallback);
+        glfwSetCursorPosCallback(window, glfwCursorPosCallback);
+        glfwSetScrollCallback(window, glfwScrollCallback);
     }
 
     void MouseListener::handleGLFWButtonEvent(i32 button, i32 action, i32 mods)
@@ -167,7 +182,7 @@ namespace wma {
             }
 
             if (event.type != PendingEvent::None) {
-                addPendingEvent(event);
+                processPendingEvents(event);
             }
         }
     }
@@ -189,7 +204,7 @@ namespace wma {
             PendingEvent event;
             event.type = PendingEvent::Move;
             event.position = currentPosition_;
-            addPendingEvent(event);
+            processPendingEvents(event);
         }
 
         lastPosition_ = MousePosition(xpos, ypos);
@@ -201,7 +216,7 @@ namespace wma {
             PendingEvent event;
             event.type = PendingEvent::Scroll;
             event.scroll = MouseScroll(xoffset, yoffset);
-            addPendingEvent(event);
+            processPendingEvents(event);
         }
     }
 
@@ -229,15 +244,22 @@ namespace wma {
 
     MouseListener* MouseListener::getInstanceFromGLFW(GLFWwindow* window)
     {
-        INK_ASSERT(window);
-
-        struct GlfwUserData {
-            void* windowManager;
-            KeyboardListener* keyboardListener;
-            MouseListener* mouseListener;
-        };
+        if (!window) {
+            INK_FATAL << "GLFW window is null";
+            return nullptr;
+        }
 
         auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
+        if (!userData) {
+            INK_FATAL << "GLFW window user data is null";
+            return nullptr;
+        }
+
+        if (!userData->mouseListener) {
+            INK_FATAL << "MouseListener in user data is null";
+            return nullptr;
+        }
+
         return userData->mouseListener;
     }
 

@@ -13,16 +13,6 @@
 #include <GLFW/glfw3.h>
 
 namespace wma {
-
-    /**
-     * @brief User data structure for GLFW callbacks
-     */
-    struct GlfwUserData {
-        GlfwWindowManager* windowManager = nullptr;
-        KeyboardListener* keyboardListener = nullptr;
-        MouseListener* mouseListener = nullptr;
-    };
-
     GlfwWindowManager::GlfwWindowManager(const WindowDetails& windowDetails, GraphicsAPI graphicsAPI)
         : window_(nullptr)
         , windowDetails_(windowDetails)
@@ -174,8 +164,6 @@ namespace wma {
         while (!windowShouldClose_ && !glfwWindowShouldClose(window_)) {
             glfwPollEvents();
 
-            mouseListener_->processPendingEvents();
-
             timer.updateDeltaTime();
             windowFlags_.frameCounter++;
             
@@ -280,6 +268,7 @@ namespace wma {
             }
         }
 #endif
+        mouseListener_->setSensitivity(1.0); // Default
     }
 
     GlfwWindowManager* GlfwWindowManager::getInstanceFromWindow(GLFWwindow* window) {
@@ -292,6 +281,12 @@ namespace wma {
         windowShouldClose_ = true;
 
         if (window_ != nullptr) {
+            glfwSetMouseButtonCallback(window_, nullptr);
+            glfwSetCursorPosCallback(window_, nullptr);
+            glfwSetScrollCallback(window_, nullptr);
+            glfwSetKeyCallback(window_, nullptr);
+            glfwSetWindowUserPointer(window_, nullptr);
+
             glfwDestroyWindow(window_);
             window_ = nullptr;
         }
