@@ -142,15 +142,46 @@ namespace wma {
         }
     }
 
-    WindowFlags* SdlWindowManager::getWindowFlags() {
+    u32 SdlWindowManager::getSDLWindowFlags() const {
+        u32 flags = 0;
+
+        switch (graphicsAPI_) {
+#ifdef WMA_ENABLE_VULKAN
+        case GraphicsAPI::Vulkan:
+            flags |= SDL_WINDOW_VULKAN;
+            break;
+#endif
+
+#ifdef WMA_ENABLE_OPENGL
+        case GraphicsAPI::OpenGL:
+            flags |= SDL_WINDOW_OPENGL;
+            break;
+#endif
+
+        case GraphicsAPI::CPU:
+            // No special flags needed for CPU rendering
+            break;
+
+        default:
+            throw GraphicsException("Unsupported graphics API for SDL");
+        }
+
+        return flags;
+    }
+
+    void* SdlWindowManager::getWindowInstance() {
+        return window_;
+    }
+
+    WindowFlags* SdlWindowManager::getWindowFlags() noexcept {
         return &windowFlags_;
     }
 
-    const WindowDetails* SdlWindowManager::getWindowDetails() const {
+    const WindowDetails* SdlWindowManager::getWindowDetails() noexcept {
         return &windowDetails_;
     }
 
-    std::vector<const char*> SdlWindowManager::getVulkanExtensions() const {
+    const std::vector<const char*> SdlWindowManager::getVulkanExtensions() const {
 #ifdef WMA_ENABLE_VULKAN
         u32 extensionCount = 0;
         if (!SDL_Vulkan_GetInstanceExtensions(window_, &extensionCount, nullptr)) {
@@ -168,15 +199,15 @@ namespace wma {
 #endif
     }
 
-    KeyboardListener& SdlWindowManager::getKeyboardListener() {
+    KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept {
         return *keyboardListener_;
     }
 
-    MouseListener& SdlWindowManager::getMouseListener() {
+    MouseListener& SdlWindowManager::getMouseListener() noexcept {
         return *mouseListener_;
     }
 
-    bool SdlWindowManager::shouldClose() const {
+    const bool SdlWindowManager::shouldClose() const {
         return windowShouldClose_;
     }
 
@@ -186,10 +217,6 @@ namespace wma {
 
     GraphicsAPI SdlWindowManager::getGraphicsAPI() const {
         return graphicsAPI_;
-    }
-
-    SDL_Window* SdlWindowManager::getSDLWindow() const {
-        return window_;
     }
 
     void SdlWindowManager::processEvents() {
@@ -278,33 +305,6 @@ namespace wma {
         }
 #endif
         mouseListener_->setSensitivity(1.0); // Default
-    }
-
-    u32 SdlWindowManager::getSDLWindowFlags() const {
-        u32 flags = 0;
-        
-        switch (graphicsAPI_) {
-#ifdef WMA_ENABLE_VULKAN
-            case GraphicsAPI::Vulkan:
-                flags |= SDL_WINDOW_VULKAN;
-                break;
-#endif
-
-#ifdef WMA_ENABLE_OPENGL
-            case GraphicsAPI::OpenGL:
-                flags |= SDL_WINDOW_OPENGL;
-                break;
-#endif
-
-            case GraphicsAPI::CPU:
-                // No special flags needed for CPU rendering
-                break;
-                
-            default:
-                throw GraphicsException("Unsupported graphics API for SDL");
-        }
-        
-        return flags;
     }
 
     WmaCode SdlWindowManager::destroy()

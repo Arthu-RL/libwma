@@ -13,6 +13,7 @@
  */
 
 #include <ink/ink_base.hpp>
+#include <ink/InkAssert.h>
 
 // Core components
 #include "core/Types.hpp"
@@ -49,6 +50,7 @@
 #define WMA_VERSION_STRING_FULL INK_STR(WMA_MAJOR_VERSION) "." INK_STR(WMA_MINOR_VERSION) "." INK_STR(WMA_PATCH_VERSION)
 
 namespace wma {
+
     /**
      * @brief Factory function to create a window manager
      * @param backend The windowing backend to use
@@ -56,30 +58,90 @@ namespace wma {
      * @param graphicsAPI Graphics API to use
      * @return Unique pointer to window manager instance
      */
-    std::unique_ptr<IWindowManager> createWindowManager(
+    inline std::unique_ptr<IWindowManager> createWindowManager(
         WindowBackend backend,
         const WindowDetails& windowDetails,
-        GraphicsAPI graphicsAPI = GraphicsAPI::Vulkan
-    );
+        GraphicsAPI graphicsAPI
+        ) {
+        switch (backend) {
+#ifdef WMA_ENABLE_GLFW
+        case WindowBackend::GLFW:
+            return std::make_unique<GlfwWindowManager>(windowDetails, graphicsAPI);
+#endif
+
+#ifdef WMA_ENABLE_SDL
+        case WindowBackend::SDL2:
+            return std::make_unique<SdlWindowManager>(windowDetails, graphicsAPI);
+#endif
+
+        default:
+            throw WMAException("Requested window backend is not available or not compiled in");
+        }
+    }
 
     /**
      * @brief Get default window backend based on platform and compilation
      * @return The recommended backend for current platform
      */
-    WindowBackend getDefaultBackend();
+    inline WindowBackend getDefaultBackend() {
+        // Priority order: GLFW first (generally more stable for graphics development)
+#ifdef WMA_ENABLE_GLFW
+        return WindowBackend::GLFW;
+#elif defined(WMA_ENABLE_SDL)
+        return WindowBackend::SDL2;
+#else
+        INK_ASSERT_MSG(false, "No window backend is enabled");
+#endif
+    }
+
 
     /**
      * @brief Check if a specific backend is available
      * @param backend The backend to check
      * @return true if backend is available
      */
-    bool isBackendAvailable(WindowBackend backend);
+    inline bool isBackendAvailable(WindowBackend backend) {
+        switch (backend) {
+#ifdef WMA_ENABLE_GLFW
+        case WindowBackend::GLFW:
+            return true;
+#endif
+
+#ifdef WMA_ENABLE_SDL
+        case WindowBackend::SDL2:
+            return true;
+#endif
+
+        default:
+            return false;
+        }
+    }
 
     /**
      * @brief Get library information string
      * @return String containing version and build info
      */
-    const char* getLibraryInfo();
+    inline const char* getLibraryInfo() {
+        static const char* info =
+            "WMA Window Management & Input Abstraction Library v" WMA_VERSION_STRING_FULL "\n"
+            "Backends: "
+#ifdef WMA_ENABLE_GLFW
+            "GLFW "
+#endif
+#ifdef WMA_ENABLE_SDL
+            "SDL2 "
+#endif
+            "\nGraphics APIs: "
+#ifdef WMA_ENABLE_VULKAN
+            "Vulkan "
+#endif
+#ifdef WMA_ENABLE_OPENGL
+            "OpenGL "
+#endif
+            "\nBuilt with C++17";
+
+        return info;
+    }
 
 } // namespace wma
 

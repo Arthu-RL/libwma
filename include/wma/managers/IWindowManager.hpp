@@ -34,42 +34,47 @@ namespace wma {
          * @param actions Callback function to execute each frame
          */
         virtual void process(std::function<void()>&& actions) = 0;
+
+        /**
+         * @brief Get current window instance
+         */
+        virtual void* getWindowInstance() = 0;
         
         /**
          * @brief Get window flags for current state
          * @return Pointer to window flags structure
          */
-        virtual WindowFlags* getWindowFlags() = 0;
+        virtual WindowFlags* getWindowFlags() noexcept = 0;
         
         /**
          * @brief Get window details/configuration
          * @return Pointer to window details structure
          */
-        virtual const WindowDetails* getWindowDetails() const = 0;
+        virtual const WindowDetails* getWindowDetails() noexcept = 0;
         
         /**
          * @brief Get required Vulkan extensions
          * @return Vector of extension names
          */
-        virtual std::vector<const char*> getVulkanExtensions() const = 0;
+        virtual const std::vector<const char*> getVulkanExtensions() const = 0;
         
         /**
          * @brief Get the keyboard listener instance
          * @return Reference to keyboard listener
          */
-        virtual KeyboardListener& getKeyboardListener() = 0;
+        virtual KeyboardListener& getKeyboardListener() noexcept = 0;
 
         /**
          * @brief Get the Mouse listener instance
          * @return Reference to mouse listener
          */
-        virtual MouseListener& getMouseListener() = 0;
+        virtual MouseListener& getMouseListener() noexcept = 0;
         
         /**
          * @brief Check if window should close
          * @return true if window should close
          */
-        virtual bool shouldClose() const = 0;
+        virtual const bool shouldClose() const = 0;
         
         /**
          * @brief Get window backend type

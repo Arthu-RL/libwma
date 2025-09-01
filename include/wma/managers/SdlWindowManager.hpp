@@ -43,23 +43,18 @@ namespace wma {
         // IWindowManager interface implementation
         void createWindow(const char* windowName) override;
         void process(std::function<void()>&& actions) override;
-        WindowFlags* getWindowFlags() override;
+        void* getWindowInstance() override;
         u32 getSDLWindowFlags() const;
-        const WindowDetails* getWindowDetails() const override;
-        std::vector<const char*> getVulkanExtensions() const override;
-        KeyboardListener& getKeyboardListener() override;
-        MouseListener& getMouseListener() override;
-        bool shouldClose() const override;
+        WindowFlags* getWindowFlags() noexcept override;
+        const WindowDetails* getWindowDetails() noexcept override;
+        const std::vector<const char*> getVulkanExtensions() const override;
+        KeyboardListener& getKeyboardListener() noexcept override;
+        MouseListener& getMouseListener() noexcept override;
+        const bool shouldClose() const override;
         WindowBackend getBackendType() const override;
         GraphicsAPI getGraphicsAPI() const override;
         WmaCode destroy() override;
-        
-        /**
-         * @brief Get raw SDL window handle
-         * @return SDL_Window pointer
-         */
-        SDL_Window* getSDLWindow() const;
-        
+
     private:
         SDL_Window* window_;
         WindowDetails windowDetails_;

@@ -45,22 +45,17 @@ namespace wma {
         // IWindowManager interface implementation
         void createWindow(const char* windowName) override;
         void process(std::function<void()>&& actions) override;
-        WindowFlags* getWindowFlags() override;
-        const WindowDetails* getWindowDetails() const override;
-        std::vector<const char*> getVulkanExtensions() const override;
-        KeyboardListener& getKeyboardListener() override;
-        MouseListener& getMouseListener() override;
-        bool shouldClose() const override;
+        void* getWindowInstance() override;
+        WindowFlags* getWindowFlags() noexcept override;
+        const WindowDetails* getWindowDetails() noexcept override;
+        const std::vector<const char*> getVulkanExtensions() const override;
+        KeyboardListener& getKeyboardListener() noexcept override;
+        MouseListener& getMouseListener() noexcept override;
+        const bool shouldClose() const override;
         WindowBackend getBackendType() const override;
         GraphicsAPI getGraphicsAPI() const override;
         WmaCode destroy() override;
-        
-        /**
-         * @brief Get raw GLFW window handle
-         * @return GLFWwindow pointer
-         */
-        GLFWwindow* getGLFWWindow() const;
-        
+
     private:
         GLFWwindow* window_;
         WindowDetails windowDetails_;

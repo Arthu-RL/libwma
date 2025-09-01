@@ -184,15 +184,19 @@ namespace wma {
         }
     }
 
-    WindowFlags* GlfwWindowManager::getWindowFlags() {
+    void* GlfwWindowManager::getWindowInstance() {
+        return window_;
+    }
+
+    WindowFlags* GlfwWindowManager::getWindowFlags() noexcept {
         return &windowFlags_;
     }
 
-    const WindowDetails* GlfwWindowManager::getWindowDetails() const {
+    const WindowDetails* GlfwWindowManager::getWindowDetails() noexcept {
         return &windowDetails_;
     }
 
-    std::vector<const char*> GlfwWindowManager::getVulkanExtensions() const {
+    const std::vector<const char*> GlfwWindowManager::getVulkanExtensions() const {
 #ifdef WMA_ENABLE_VULKAN
         u32 extensionCount = 0;
         const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
@@ -207,15 +211,15 @@ namespace wma {
 #endif
     }
 
-    KeyboardListener& GlfwWindowManager::getKeyboardListener() {
+    KeyboardListener& GlfwWindowManager::getKeyboardListener() noexcept {
         return *keyboardListener_;
     }
 
-    MouseListener& GlfwWindowManager::getMouseListener() {
+    MouseListener& GlfwWindowManager::getMouseListener() noexcept {
         return *mouseListener_;
     }
 
-    bool GlfwWindowManager::shouldClose() const {
+    const bool GlfwWindowManager::shouldClose() const {
         return windowShouldClose_ || glfwWindowShouldClose(window_);
     }
 
@@ -225,10 +229,6 @@ namespace wma {
 
     GraphicsAPI GlfwWindowManager::getGraphicsAPI() const {
         return graphicsAPI_;
-    }
-
-    GLFWwindow* GlfwWindowManager::getGLFWWindow() const {
-        return window_;
     }
 
     void GlfwWindowManager::framebufferSizeCallback(GLFWwindow* window, int width, int height) {

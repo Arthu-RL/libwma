@@ -16,20 +16,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(WMA_BUILD_SHARED "Build shared library" OFF)
 option(WMA_ENABLE_GLFW "Enable GLFW backend" OFF)
 option(WMA_ENABLE_SDL "Enable SDL2 backend" ON)
-option(WMA_ENABLE_VULKAN "Enable Vulkan support" OFF)
-option(WMA_ENABLE_OPENGL "Enable OpenGL support" OFF)
-option(WMA_ENABLE_SOFTWARE "Enable CPU support" ON)
 option(WMA_BUILD_EXAMPLES "Build example applications" ON)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
 option(WMA_BUILD_TESTS "Build unit tests" OFF)
+option(WMA_ENABLE_VULKAN "Enable Vulkan support" OFF)
+option(WMA_ENABLE_OPENGL "Enable OpenGL support" OFF)
 
 # Validate options
 if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL)
     message(FATAL_ERROR "At least one backend (GLFW or SDL) must be enabled")
-endif()
-
-if(NOT WMA_ENABLE_VULKAN AND NOT WMA_ENABLE_OPENGL AND NOT WMA_ENABLE_SOFTWARE)
-    message(FATAL_ERROR "At least one graphics API (Vulkan, OpenGL, or CPU) must be enabled")
 endif()
 
 if(WMA_BUILD_SHARED)
@@ -57,7 +52,6 @@ set(WMA_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/wma.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/managers/IWindowManager.hpp
     ${HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/wma.cpp
     ${SOURCES}
 )
 
@@ -93,8 +87,6 @@ target_include_directories(${PROJECT_NAME}
 )
 
 # Compile definitions
-target_compile_definitions(${PROJECT_NAME} PRIVATE WMA_BUILDING_LIBRARY)
-
 if(WMA_ENABLE_GLFW)
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_GLFW)
 endif()
@@ -111,60 +103,32 @@ if(WMA_ENABLE_OPENGL)
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_OPENGL)
 endif()
 
-if(WMA_ENABLE_SOFTWARE)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_SOFTWARE)
+# Find and link dependencies
+set(ALL_LIBRARY_PATH "$ENV{LIBRARY_PATH}/lib")
+
+# External libs - INK dependency
+find_package(ink HINTS ${ALL_LIBRARY_PATH})
+target_link_libraries(${PROJECT_NAME} PUBLIC ink)
+
+# GLFW
+if(WMA_ENABLE_GLFW)
+    find_package(glfw3 HINTS ${ALL_LIBRARY_PATH})
+    target_link_libraries(${PROJECT_NAME} PUBLIC glfw3)
+endif()
+
+# SDL2
+if(WMA_ENABLE_SDL)
+    find_package(SDL2 HINTS ${ALL_LIBRARY_PATH})
+    target_link_libraries(${PROJECT_NAME} PUBLIC SDL2)
 endif()
 
 # Find and link dependencies
 set(ALL_LIBRARY_PATH "$ENV{LIBRARY_PATH}/lib")
 
-# External libs - INK dependency
-find_library(INK_LIB ink HINTS ${ALL_LIBRARY_PATH})
-if(INK_LIB)
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${INK_LIB})
-    message(STATUS "Found INK library: ${INK_LIB}")
-else()
-    message(WARNING "INK library not found")
-endif()
-
-# GLFW
-if(WMA_ENABLE_GLFW)
-    find_library(GLFW_LIB glfw3 HINTS ${ALL_LIBRARY_PATH})
-    if(GLFW_LIB)
-        target_link_libraries(${PROJECT_NAME} PUBLIC ${GLFW_LIB})
-        message(STATUS "Found GLFW library: ${GLFW_LIB}")
-    else()
-        message(FATAL_ERROR "GLFW library not found")
-    endif()
-endif()
-
-# SDL2
-if(WMA_ENABLE_SDL)
-    find_library(SDL2_LIB SDL2 HINTS ${ALL_LIBRARY_PATH})
-    if(SDL2_LIB)
-        target_link_libraries(${PROJECT_NAME} PUBLIC ${SDL2_LIB})
-        message(STATUS "Found SDL2 library: ${SDL2_LIB}")
-    else()
-        message(FATAL_ERROR "SDL2 library not found")
-    endif()
-endif()
-
-# Vulkan (disabled by default)
-if(WMA_ENABLE_VULKAN)
-    include_directories("$ENV{VULKAN_SDK}/include")
-    find_library(VULKAN_LIB vulkan HINTS "$ENV{VULKAN_SDK}/lib")
-    if(VULKAN_LIB)
-        target_link_libraries(${PROJECT_NAME} PUBLIC ${VULKAN_LIB})
-        message(STATUS "Found Vulkan library: ${VULKAN_LIB}")
-    else()
-        message(FATAL_ERROR "Vulkan enabled but not found")
-    endif()
-endif()
-
 # OpenGL/GLAD
 if(WMA_ENABLE_OPENGL)
-    find_library(GLAD_LIB glad HINTS ${ALL_LIBRARY_PATH})
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${GLAD_LIB})
+    find_package(glad HINTS ${ALL_LIBRARY_PATH})
+    target_link_libraries(${PROJECT_NAME} PUBLIC glad)
 endif()
 
 # Platform-specific linking
@@ -263,14 +227,13 @@ endif()
 include(GNUInstallDirs)
 
 install(TARGETS ${PROJECT_NAME}
-    EXPORT wma-targets
+    EXPORT ${PROJECT_NAME}-targets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(DIRECTORY include/wma
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
         PATTERN "*.hpp"
@@ -286,9 +249,9 @@ if(WMA_BUILD_EXAMPLES)
     endif()
 endif()
 
-install(EXPORT wma-targets
-    FILE wma-targets.cmake
-    NAMESPACE wma::
+install(EXPORT ${PROJECT_NAME}-targets
+    FILE ${PROJECT_NAME}-config.cmake
+    NAMESPACE ${PROJECT_NAME}::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
 
@@ -325,6 +288,11 @@ if(WMA_ENABLE_SDL)
     message(STATUS "  ✓ SDL2")
 endif()
 message(STATUS "")
+message(STATUS "Features:")
+message(STATUS "  Examples:      ${WMA_BUILD_EXAMPLES}")
+message(STATUS "  Tests:         ${WMA_BUILD_TESTS}")
+message(STATUS "  Auto-install:  ${WMA_AUTO_INSTALL}")
+message(STATUS "")
 message(STATUS "Graphics APIs:")
 if(WMA_ENABLE_VULKAN)
     message(STATUS "  ✓ Vulkan")
@@ -335,11 +303,6 @@ endif()
 if(WMA_ENABLE_SOFTWARE)
     message(STATUS "  ✓ Software/CPU")
 endif()
-message(STATUS "")
-message(STATUS "Features:")
-message(STATUS "  Examples:      ${WMA_BUILD_EXAMPLES}")
-message(STATUS "  Tests:         ${WMA_BUILD_TESTS}")
-message(STATUS "  Auto-install:  ${WMA_AUTO_INSTALL}")
 message(STATUS "")
 message(STATUS "Install prefix:  ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "=====================================")

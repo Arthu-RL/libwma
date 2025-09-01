@@ -244,21 +244,13 @@ namespace wma {
 
     MouseListener* MouseListener::getInstanceFromGLFW(GLFWwindow* window)
     {
-        if (!window) {
-            INK_FATAL << "GLFW window is null";
-            return nullptr;
-        }
+        if (!window) return nullptr;
 
         auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
-        if (!userData) {
-            INK_FATAL << "GLFW window user data is null";
-            return nullptr;
-        }
 
-        if (!userData->mouseListener) {
-            INK_FATAL << "MouseListener in user data is null";
-            return nullptr;
-        }
+        if (!userData) return nullptr;
+
+        if (!userData->mouseListener) return nullptr;
 
         return userData->mouseListener;
     }
