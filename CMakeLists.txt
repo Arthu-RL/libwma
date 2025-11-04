@@ -107,7 +107,7 @@ endif()
 set(ALL_LIBRARY_PATH "$ENV{LIBRARY_PATH}/lib")
 
 # External libs - INK dependency
-find_package(ink HINTS ${ALL_LIBRARY_PATH})
+find_package(ink REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC ink)
 
 # GLFW
@@ -233,7 +233,8 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/
+install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
         PATTERN "*.hpp"
