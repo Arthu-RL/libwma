@@ -19,8 +19,8 @@ option(WMA_ENABLE_SDL "Enable SDL2 backend" ON)
 option(WMA_BUILD_EXAMPLES "Build example applications" ON)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
 option(WMA_BUILD_TESTS "Build unit tests" OFF)
-option(WMA_ENABLE_VULKAN "Enable Vulkan support" OFF)
-option(WMA_ENABLE_OPENGL "Enable OpenGL support" OFF)
+option(WMA_ENABLE_VULKAN "Enable Vulkan support" ON)
+option(WMA_ENABLE_OPENGL "Enable OpenGL support" ON)
 
 # Validate options
 if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL)

@@ -94,7 +94,6 @@ namespace wma {
 #endif
     }
 
-
     /**
      * @brief Check if a specific backend is available
      * @param backend The backend to check
