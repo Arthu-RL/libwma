@@ -14,7 +14,8 @@ namespace wma {
     // Window backend enumeration
     enum WindowBackend : i32 {
         GLFW,
-        SDL2
+        SDL2,
+        X11
     };
 
     enum WmaCode : i32 {

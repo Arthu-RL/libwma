@@ -86,4 +86,19 @@ namespace wma {
     }
 #endif // WMA_ENABLE_SDL
 
+#ifdef WMA_ENABLE_X11
+void KeyboardListener::handleX11KeyEvent(KeySym x11Key, const XKeyEvent& xKeyEvent)
+{
+    Key mappedKey = mapX11Key(x11Key);
+    auto it = keyActions_.find(static_cast<i32>(mappedKey));
+    if (it != keyActions_.end()) {
+        if (xKeyEvent.type == KeyPress) {
+            it->second.executePress();
+        } else if (xKeyEvent.type == KeyRelease) {
+            it->second.executeRelease();
+        }
+    }
+}
+#endif
+
 } // namespace wma

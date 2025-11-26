@@ -11,6 +11,11 @@
 #include <SDL2/SDL.h>
 #endif
 
+#ifdef WMA_ENABLE_X11
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
+#endif
+
 namespace wma {
 
 enum Key : i32 {
@@ -360,7 +365,7 @@ inline Key mapSDLKey(SDL_Keycode sdlKey) {
     case SDLK_PERIOD: return Key::KEY_PERIOD;
     case SDLK_SLASH: return Key::KEY_SLASH;
 
-        // Keypad
+    // Keypad
     case SDLK_KP_0: return Key::KEY_KP_0;
     case SDLK_KP_1: return Key::KEY_KP_1;
     case SDLK_KP_2: return Key::KEY_KP_2;
@@ -381,6 +386,130 @@ inline Key mapSDLKey(SDL_Keycode sdlKey) {
     default: return Key::KEY_UNKNOWN;
     }
 }
+
+#ifdef WMA_ENABLE_X11
+//! Map keys to X11 KeySym
+inline Key mapX11Key(KeySym x11Key) {
+    switch (x11Key) {
+    // Letters
+    case XK_a: return Key::KEY_A;
+    case XK_b: return Key::KEY_B;
+    case XK_c: return Key::KEY_C;
+    case XK_d: return Key::KEY_D;
+    case XK_e: return Key::KEY_E;
+    case XK_f: return Key::KEY_F;
+    case XK_g: return Key::KEY_G;
+    case XK_h: return Key::KEY_H;
+    case XK_i: return Key::KEY_I;
+    case XK_j: return Key::KEY_J;
+    case XK_k: return Key::KEY_K;
+    case XK_l: return Key::KEY_L;
+    case XK_m: return Key::KEY_M;
+    case XK_n: return Key::KEY_N;
+    case XK_o: return Key::KEY_O;
+    case XK_p: return Key::KEY_P;
+    case XK_q: return Key::KEY_Q;
+    case XK_r: return Key::KEY_R;
+    case XK_s: return Key::KEY_S;
+    case XK_t: return Key::KEY_T;
+    case XK_u: return Key::KEY_U;
+    case XK_v: return Key::KEY_V;
+    case XK_w: return Key::KEY_W;
+    case XK_x: return Key::KEY_X;
+    case XK_y: return Key::KEY_Y;
+    case XK_z: return Key::KEY_Z;
+
+        // Numbers
+    case XK_0: return Key::KEY_0;
+    case XK_1: return Key::KEY_1;
+    case XK_2: return Key::KEY_2;
+    case XK_3: return Key::KEY_3;
+    case XK_4: return Key::KEY_4;
+    case XK_5: return Key::KEY_5;
+    case XK_6: return Key::KEY_6;
+    case XK_7: return Key::KEY_7;
+    case XK_8: return Key::KEY_8;
+    case XK_9: return Key::KEY_9;
+
+        // Function keys
+    case XK_F1: return Key::KEY_F1;
+    case XK_F2: return Key::KEY_F2;
+    case XK_F3: return Key::KEY_F3;
+    case XK_F4: return Key::KEY_F4;
+    case XK_F5: return Key::KEY_F5;
+    case XK_F6: return Key::KEY_F6;
+    case XK_F7: return Key::KEY_F7;
+    case XK_F8: return Key::KEY_F8;
+    case XK_F9: return Key::KEY_F9;
+    case XK_F10: return Key::KEY_F10;
+    case XK_F11: return Key::KEY_F11;
+    case XK_F12: return Key::KEY_F12;
+
+        // Controls
+    case XK_Escape: return Key::KEY_ESCAPE;
+    case XK_Return: return Key::KEY_ENTER; // Main Enter key
+    case XK_Tab: return Key::KEY_TAB;
+    case XK_BackSpace: return Key::KEY_BACKSPACE;
+    case XK_Insert: return Key::KEY_INSERT;
+    case XK_Delete: return Key::KEY_DELETE;
+    case XK_Right: return Key::KEY_RIGHT;
+    case XK_Left: return Key::KEY_LEFT;
+    case XK_Down: return Key::KEY_DOWN;
+    case XK_Up: return Key::KEY_UP;
+    case XK_Page_Up: return Key::KEY_PAGE_UP;
+    case XK_Page_Down: return Key::KEY_PAGE_DOWN;
+    case XK_Home: return Key::KEY_HOME;
+    case XK_End: return Key::KEY_END;
+
+        // Modifiers
+    case XK_Shift_L: return Key::KEY_LEFT_SHIFT;
+    case XK_Shift_R: return Key::KEY_RIGHT_SHIFT;
+    case XK_Control_L: return Key::KEY_LEFT_CTRL;
+    case XK_Control_R: return Key::KEY_RIGHT_CTRL;
+    case XK_Alt_L: return Key::KEY_LEFT_ALT;
+    case XK_Alt_R: return Key::KEY_RIGHT_ALT;
+    case XK_Super_L: return Key::KEY_LEFT_SUPER;
+    case XK_Super_R: return Key::KEY_RIGHT_SUPER;
+    case XK_Caps_Lock: return Key::KEY_CAPS_LOCK;
+    case XK_Scroll_Lock: return Key::KEY_SCROLL_LOCK;
+    case XK_Num_Lock: return Key::KEY_NUM_LOCK;
+
+        // Symbols
+    case XK_space: return Key::KEY_SPACE;
+    case XK_minus: return Key::KEY_MINUS;
+    case XK_equal: return Key::KEY_EQUAL;
+    case XK_bracketleft: return Key::KEY_LEFT_BRACKET;
+    case XK_bracketright: return Key::KEY_RIGHT_BRACKET;
+    case XK_backslash: return Key::KEY_BACKSLASH;
+    case XK_semicolon: return Key::KEY_SEMICOLON;
+    case XK_apostrophe: return Key::KEY_APOSTROPHE;
+    case XK_grave: return Key::KEY_GRAVE;
+    case XK_comma: return Key::KEY_COMMA;
+    case XK_period: return Key::KEY_PERIOD;
+    case XK_slash: return Key::KEY_SLASH;
+
+        // Keypad
+    case XK_KP_0: return Key::KEY_KP_0;
+    case XK_KP_1: return Key::KEY_KP_1;
+    case XK_KP_2: return Key::KEY_KP_2;
+    case XK_KP_3: return Key::KEY_KP_3;
+    case XK_KP_4: return Key::KEY_KP_4;
+    case XK_KP_5: return Key::KEY_KP_5;
+    case XK_KP_6: return Key::KEY_KP_6;
+    case XK_KP_7: return Key::KEY_KP_7;
+    case XK_KP_8: return Key::KEY_KP_8;
+    case XK_KP_9: return Key::KEY_KP_9;
+    case XK_KP_Decimal: return Key::KEY_KP_DECIMAL;
+    case XK_KP_Divide: return Key::KEY_KP_DIVIDE;
+    case XK_KP_Multiply: return Key::KEY_KP_MULTIPLY;
+    case XK_KP_Subtract: return Key::KEY_KP_SUBTRACT;
+    case XK_KP_Add: return Key::KEY_KP_ADD;
+    case XK_KP_Enter: return Key::KEY_KP_ENTER; // Keypad Enter key
+
+    default: return Key::KEY_UNKNOWN;
+    }
+}
+#endif
 
 #endif
 

@@ -130,14 +130,14 @@ private:
      * @brief Mouse button constants for cross-platform compatibility
      */
 namespace MouseButton {
-constexpr i32 Left = 0;
-constexpr i32 Right = 1;
-constexpr i32 Middle = 2;
-constexpr i32 Button4 = 3;
-constexpr i32 Button5 = 4;
-constexpr i32 Button6 = 5;
-constexpr i32 Button7 = 6;
-constexpr i32 Button8 = 7;
+    constexpr i32 Left = 0;
+    constexpr i32 Right = 1;
+    constexpr i32 Middle = 2;
+    constexpr i32 Button4 = 3;
+    constexpr i32 Button5 = 4;
+    constexpr i32 Button6 = 5;
+    constexpr i32 Button7 = 6;
+    constexpr i32 Button8 = 7;
 }
 
 } // namespace wma

@@ -40,6 +40,10 @@
     #include "managers/SdlWindowManager.hpp"
 #endif
 
+#ifdef WMA_ENABLE_X11
+#include "managers/X11WindowManager.hpp"
+#endif
+
 /*====================
  * WMA VERSION INFO
  *====================*/
@@ -74,6 +78,10 @@ namespace wma {
             return std::make_unique<SdlWindowManager>(windowDetails, graphicsAPI);
 #endif
 
+#ifdef WMA_ENABLE_X11
+        case WindowBackend::X11:
+            return std::make_unique<X11WindowManager>(windowDetails, graphicsAPI);
+#endif
         default:
             throw WMAException("Requested window backend is not available or not compiled in");
         }
@@ -89,6 +97,8 @@ namespace wma {
         return WindowBackend::GLFW;
 #elif defined(WMA_ENABLE_SDL)
         return WindowBackend::SDL2;
+#elif defined(WMA_ENABLE_X11)
+        return WindowBackend::X11;
 #else
         INK_ASSERT_MSG(false, "No window backend is enabled");
 #endif
@@ -112,6 +122,10 @@ namespace wma {
             return true;
 #endif
 
+#ifdef WMA_ENABLE_X11
+        case WindowBackend::X11:
+            return true;
+#endif
         default:
             return false;
         }
@@ -130,7 +144,11 @@ namespace wma {
 #endif
 #ifdef WMA_ENABLE_SDL
             "SDL2 "
+#endif  
+#ifdef WMA_ENABLE_X11
+            "X11 "
 #endif
+
             "\nGraphics APIs: "
 #ifdef WMA_ENABLE_VULKAN
             "Vulkan "

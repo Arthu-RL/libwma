@@ -3,6 +3,8 @@
 
 #include <ink/ink_base.hpp>
 #include <unordered_map>
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
 
 #include "KeyAction.hpp"
 
@@ -65,7 +67,8 @@ namespace wma {
         // Platform-specific event handling
         void handleGLFWKeyEvent(i32 key, i32 action);
         void handleSDLKeyEvent(const SDL_KeyboardEvent& keyEvent);
-        
+        void handleX11KeyEvent(KeySym x11Key, const XKeyEvent& xKeyEvent);
+
     private:
         std::unordered_map<i32, KeyAction> keyActions_;
         

@@ -15,7 +15,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Build options
 option(WMA_BUILD_SHARED "Build shared library" OFF)
 option(WMA_ENABLE_GLFW "Enable GLFW backend" OFF)
-option(WMA_ENABLE_SDL "Enable SDL2 backend" ON)
+option(WMA_ENABLE_SDL "Enable SDL2 backend" OFF)
+option(WMA_ENABLE_X11 "Enable X11 backend" ON)
 option(WMA_BUILD_EXAMPLES "Build example applications" ON)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
 option(WMA_BUILD_TESTS "Build unit tests" OFF)
@@ -23,8 +24,8 @@ option(WMA_ENABLE_VULKAN "Enable Vulkan support" OFF)
 option(WMA_ENABLE_OPENGL "Enable OpenGL support" OFF)
 
 # Validate options
-if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL)
-    message(FATAL_ERROR "At least one backend (GLFW or SDL) must be enabled")
+if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL AND NOT WMA_ENABLE_X11)
+    message(FATAL_ERROR "At least one backend (GLFW or SDL or X11) must be enabled")
 endif()
 
 if(WMA_BUILD_SHARED)
@@ -70,6 +71,13 @@ if(WMA_ENABLE_SDL)
     )
 endif()
 
+if(WMA_ENABLE_X11)
+    list(APPEND WMA_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/managers/X11WindowManager.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/managers/X11WindowManager.cpp
+    )
+endif()
+
 # Create the main library
 add_library(${PROJECT_NAME} ${WMA_LIBRARY_TYPE} ${WMA_SOURCES})
 
@@ -93,6 +101,10 @@ endif()
 
 if(WMA_ENABLE_SDL)
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_SDL)
+endif()
+
+if(WMA_ENABLE_X11)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_X11)
 endif()
 
 if(WMA_ENABLE_VULKAN)
@@ -120,6 +132,12 @@ endif()
 if(WMA_ENABLE_SDL)
     find_package(SDL2 HINTS ${ALL_LIBRARY_PATH})
     target_link_libraries(${PROJECT_NAME} PUBLIC SDL2)
+endif()
+
+# X11
+if(WMA_ENABLE_X11)
+    find_package(X11 HINTS ${ALL_LIBRARY_PATH})
+    target_link_libraries(${PROJECT_NAME} PUBLIC X11)
 endif()
 
 # Find and link dependencies
@@ -286,6 +304,9 @@ if(WMA_ENABLE_GLFW)
 endif()
 if(WMA_ENABLE_SDL)
     message(STATUS "  ✓ SDL2")
+endif()
+if(WMA_ENABLE_X11)
+    message(STATUS "  ✓ X11")
 endif()
 message(STATUS "")
 message(STATUS "Features:")
