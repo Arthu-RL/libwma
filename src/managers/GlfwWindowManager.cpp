@@ -7,7 +7,7 @@
 #ifdef WMA_ENABLE_GLFW
 
 #ifdef WMA_ENABLE_OPENGL
-#include <glad/gl.h>
+#include <glad/glad.h>
 #endif
 
 #include <GLFW/glfw3.h>
@@ -139,7 +139,7 @@ namespace wma {
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
             glfwMakeContextCurrent(window_);
             
-            if (!gladLoadGL((GLADloadfunc)glfwGetProcAddress)) {
+            if (!GLADloadproc((GLADloadproc)glfwGetProcAddress)) {
                 glfwDestroyWindow(window_);
                 glfwTerminate();
                 throw GraphicsException("Failed to load OpenGL functions");

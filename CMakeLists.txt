@@ -20,8 +20,8 @@ option(WMA_ENABLE_X11 "Enable X11 backend" ON)
 option(WMA_BUILD_EXAMPLES "Build example applications" ON)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
 option(WMA_BUILD_TESTS "Build unit tests" OFF)
-option(WMA_ENABLE_VULKAN "Enable Vulkan support" OFF)
-option(WMA_ENABLE_OPENGL "Enable OpenGL support" OFF)
+option(WMA_ENABLE_VULKAN "Enable Vulkan support" ON)
+option(WMA_ENABLE_OPENGL "Enable OpenGL support" ON)
 
 # Validate options
 if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL AND NOT WMA_ENABLE_X11)
@@ -119,7 +119,7 @@ endif()
 set(ALL_LIBRARY_PATH "$ENV{LIBRARY_PATH}/lib")
 
 # External libs - INK dependency
-find_package(ink HINTS ${ALL_LIBRARY_PATH})
+find_package(ink REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC ink)
 
 # GLFW
@@ -251,7 +251,8 @@ install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/
+install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
         PATTERN "*.hpp"

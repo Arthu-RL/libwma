@@ -12,7 +12,7 @@
 #endif
 
 #ifdef WMA_ENABLE_OPENGL
-    #include <glad/gl.h>
+    #include <glad/glad.h>
     #include <SDL2/SDL_opengl.h>
 #endif
 
@@ -97,7 +97,7 @@ namespace wma {
                 throw GraphicsException("Failed to create OpenGL context: " + std::string(SDL_GetError()));
             }
 
-            if (!gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress)) {
+            if (gladLoadGL() == 0) {
                 SDL_GL_DeleteContext(glContext);
                 SDL_DestroyWindow(window_);
                 SDL_Quit();
@@ -128,12 +128,17 @@ namespace wma {
             // Reset frame-specific flags
             windowFlags_.resetFrameFlags();
             
-            // Execute user actions
+#ifdef WMA_ENABLE_OPENGL
+            if (graphicsAPI_ == GraphicsAPI::OpenGL) {
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+            }
+#endif
+
+            // Execute user actions (draw, update, etc.)
             actions();
 
 #ifdef WMA_ENABLE_OPENGL
             if (graphicsAPI_ == GraphicsAPI::OpenGL) {
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
                 SDL_GL_SwapWindow(window_);
             }
 #endif
@@ -311,6 +316,11 @@ namespace wma {
     {
         windowShouldClose_ = true;
 
+#ifdef WMA_ENABLE_OPENGL
+        if (graphicsAPI_ == GraphicsAPI::OpenGL) {
+            SDL_GL_DeleteContext(SDL_GL_GetCurrentContext());
+        }
+#endif
         if (window_) {
             SDL_DestroyWindow(window_);
         }
