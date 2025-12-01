@@ -73,7 +73,7 @@ namespace wma {
         return buttonActions_.find(button) != buttonActions_.end();
     }
 
-    MousePosition MouseListener::getCurrentPosition() const
+    WMAMousePosition MouseListener::getCurrentPosition() const
     {
         return currentPosition_;
     }
@@ -109,19 +109,19 @@ namespace wma {
     void MouseListener::processPendingEvents(const PendingEvent& event)
     {
         switch (event.type) {
-        case PendingEvent::Move:
+        case PendingEvent::WMAMove:
             if (moveAction_.hasMoveAction()) {
                 moveAction_.executeMove(event.position);
             }
             break;
 
-        case PendingEvent::Scroll:
+        case PendingEvent::WMAScroll:
             if (scrollAction_.hasScrollAction()) {
                 scrollAction_.executeScroll(event.scroll);
             }
             break;
 
-        case PendingEvent::ButtonPress: {
+        case PendingEvent::WMAButtonPress: {
             auto it = buttonActions_.find(event.button);
             if (it != buttonActions_.end()) {
                 it->second.executePress();
@@ -129,7 +129,7 @@ namespace wma {
             break;
         }
 
-        case PendingEvent::ButtonRelease: {
+        case PendingEvent::WMAButtonRelease: {
             auto it = buttonActions_.find(event.button);
             if (it != buttonActions_.end()) {
                 it->second.executeRelease();
@@ -137,7 +137,7 @@ namespace wma {
             break;
         }
 
-        case PendingEvent::None:
+        case PendingEvent::WMANone:
         default:
             break;
         }
@@ -295,7 +295,7 @@ namespace wma {
         // Get initial cursor position
         i32 x, y;
         SDL_GetMouseState(&x, &y);
-        currentPosition_ = MousePosition(static_cast<f64>(x), static_cast<f64>(y));
+        currentPosition_ = WMAMousePosition(static_cast<f64>(x), static_cast<f64>(y));
         lastPosition_ = currentPosition_;
 
         updateCursorStateSDL();
@@ -323,7 +323,7 @@ namespace wma {
 
         case SDL_MOUSEMOTION: {
             if (firstMouse_) {
-                lastPosition_ = MousePosition(static_cast<f64>(event.motion.x), static_cast<f64>(event.motion.y));
+                lastPosition_ = WMAMousePosition(static_cast<f64>(event.motion.x), static_cast<f64>(event.motion.y));
                 firstMouse_ = false;
             }
 
@@ -332,18 +332,18 @@ namespace wma {
             f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
             f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
 
-            currentPosition_ = MousePosition(xpos, ypos, deltaX, deltaY);
+            currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
 
             if (moveAction_.hasMoveAction()) {
                 moveAction_.executeMove(currentPosition_);
             }
 
-            lastPosition_ = MousePosition(xpos, ypos);
+            lastPosition_ = WMAMousePosition(xpos, ypos);
             break;
         }
 
         case SDL_MOUSEWHEEL: {
-            MouseScroll scroll(static_cast<f64>(event.wheel.x), static_cast<f64>(event.wheel.y));
+            WMAMouseScroll scroll(static_cast<f64>(event.wheel.x), static_cast<f64>(event.wheel.y));
 
             if (scrollAction_.hasScrollAction()) {
                 scrollAction_.executeScroll(scroll);
@@ -372,11 +372,11 @@ namespace wma {
     i32 MouseListener::convertSDLButton(i32 sdlButton) const
     {
         switch (sdlButton) {
-        case SDL_BUTTON_LEFT:   return MouseButton::Left;
-        case SDL_BUTTON_RIGHT:  return MouseButton::Right;
-        case SDL_BUTTON_MIDDLE: return MouseButton::Middle;
-        case SDL_BUTTON_X1:     return MouseButton::Button4;
-        case SDL_BUTTON_X2:     return MouseButton::Button5;
+        case SDL_BUTTON_LEFT:   return MouseButton::WMALeft;
+        case SDL_BUTTON_RIGHT:  return MouseButton::WMARight;
+        case SDL_BUTTON_MIDDLE: return MouseButton::WMAMiddle;
+        case SDL_BUTTON_X1:     return MouseButton::WMAButton4;
+        case SDL_BUTTON_X2:     return MouseButton::WMAButton5;
         default:                return sdlButton;
         }
     }

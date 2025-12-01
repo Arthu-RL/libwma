@@ -16,26 +16,26 @@ union SDL_Event;
 namespace wma {
 
 struct PendingEvent {
-    enum Type {
-        None = 0,
-        Move,
-        Scroll,
-        ButtonPress,
-        ButtonRelease
-    } type = None;  // Initialize to None
+    enum WMAType {
+        WMANone = 0,
+        WMAMove,
+        WMAScroll,
+        WMAButtonPress,
+        WMAButtonRelease
+    } type = WMANone;  // Initialize to None
 
-    MousePosition position{};  // Default initialize
-    MouseScroll scroll{};      // Default initialize
+    WMAMousePosition position{};  // Default initialize
+    WMAMouseScroll scroll{};      // Default initialize
     i32 button = -1;          // Initialize to invalid button
 
     // Default constructor
     PendingEvent() = default;
 
     // Explicit constructors
-    explicit PendingEvent(Type t) : type(t) {}
-    PendingEvent(Type t, const MousePosition& pos) : type(t), position(pos) {}
-    PendingEvent(Type t, const MouseScroll& s) : type(t), scroll(s) {}
-    PendingEvent(Type t, i32 btn) : type(t), button(btn) {}
+    explicit PendingEvent(WMAType t) : type(t) {}
+    PendingEvent(WMAType t, const WMAMousePosition& pos) : type(t), position(pos) {}
+    PendingEvent(WMAType t, const WMAMouseScroll& s) : type(t), scroll(s) {}
+    PendingEvent(WMAType t, i32 btn) : type(t), button(btn) {}
 };
 
 class MouseListener {
@@ -52,7 +52,7 @@ public:
     bool hasButtonAction(i32 button) const;
 
     // State queries
-    MousePosition getCurrentPosition() const;
+    WMAMousePosition getCurrentPosition() const;
     void setCursorEnabled(bool enabled);
     bool isCursorEnabled() const;
     void setSensitivity(f64 sensitivity);
@@ -77,8 +77,8 @@ private:
     std::unordered_map<i32, MouseAction> buttonActions_;
     MouseAction moveAction_;
     MouseAction scrollAction_;
-    MousePosition currentPosition_;
-    MousePosition lastPosition_;
+    WMAMousePosition currentPosition_;
+    WMAMousePosition lastPosition_;
     bool cursorEnabled_ = true;
     f64 sensitivity_ = 1.0;
     bool firstMouse_ = true;

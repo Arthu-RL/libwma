@@ -239,7 +239,7 @@ inline Key mapGLFWKey(int glfwKey) {
     case GLFW_KEY_PERIOD: return Key::KEY_PERIOD;
     case GLFW_KEY_SLASH: return Key::KEY_SLASH;
 
-        // Keypad
+    // Keypad
     case GLFW_KEY_KP_0: return Key::KEY_KP_0;
     case GLFW_KEY_KP_1: return Key::KEY_KP_1;
     case GLFW_KEY_KP_2: return Key::KEY_KP_2;
@@ -387,6 +387,8 @@ inline Key mapSDLKey(SDL_Keycode sdlKey) {
     }
 }
 
+#endif
+
 #ifdef WMA_ENABLE_X11
 //! Map keys to X11 KeySym
 inline Key mapX11Key(KeySym x11Key) {
@@ -509,8 +511,6 @@ inline Key mapX11Key(KeySym x11Key) {
     default: return Key::KEY_UNKNOWN;
     }
 }
-#endif
-
 #endif
 
 } // namespace wma
