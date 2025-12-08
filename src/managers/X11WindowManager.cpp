@@ -1,5 +1,7 @@
 #include "wma/managers/X11WindowManager.hpp"
 
+#include "wma/core/FrameTimer.hpp"
+
 #include <ink/InkAssert.h>
 #include <ink/InkException.h>
 
@@ -71,57 +73,75 @@ void X11WindowManager::createWindow(const char* windowName)
 
 void X11WindowManager::process(std::function<void()>&& actions)
 {
-    if (windowShouldClose_) return;
-
-    windowFlags_.resized = false;
-    XEvent event;
+    FrameTimer timer(windowFlags_);
+    timer.setTargetFPS(windowDetails_.targetFPS);
 
     while (XPending(display_) > 0) {
-        XNextEvent(display_, &event);
+        timer.updateDeltaTime();
 
-        switch (event.type) {
-            case Expose:
-                break;
-            // Fired on window resize or move.
-            case ConfigureNotify: {
-                XConfigureEvent xce = event.xconfigure;
-                if (xce.width != windowDetails_.width || xce.height != windowDetails_.height) {
-                    windowDetails_.width = xce.width;
-                    windowDetails_.height = xce.height;
-                    windowFlags_.resized = true;
-                }
-                break;
-            }
-
-            // --- Input Events ---
-            case KeyPress:
-                // std::cout << "Key pressed: " << XLookupKeysym(&event.xkey, 0) << std::endl;
-                // TODO: Update keyboardListener_
-                break;
-
-            case KeyRelease:
-                // std::cout << "Key released: " << XLookupKeysym(&event.xkey, 0) << std::endl;
-                // TODO: Update keyboardListener_
-                break;
-
-            case ButtonPress:
-                // std::cout << "Mouse button pressed: " << event.xbutton.button << std::endl;
-                // TODO: Update mouseListener_
-                break;
-
-            // Fired when the user clicks the window's close button.
-            case ClientMessage:
-                if (static_cast<Atom>(event.xclient.data.l[0]) == wmDeleteWindow_) {
-                    windowShouldClose_ = true;
-                }
-                break;
-
-            default:
-                break;
-        }
+        processEvents();
 
         actions();
+
+        timer.limitFrameRate();
     }
+}
+
+void X11WindowManager::processEvents()
+{
+    static XEvent event;
+
+    XNextEvent(display_, &event);
+
+    switch (event.type)
+    {
+        case Expose:
+            break;
+        // Fired on window resize or move.
+        case ConfigureNotify:
+        {
+            XConfigureEvent xce = event.xconfigure;
+            if (xce.width != windowDetails_.width || xce.height != windowDetails_.height) {
+                windowDetails_.width = xce.width;
+                windowDetails_.height = xce.height;
+                windowFlags_.resized = true;
+            }
+            break;
+        }
+
+            // --- Input Events ---
+        case KeyPress:
+            // std::cout << "Key pressed: " << XLookupKeysym(&event.xkey, 0) << std::endl;
+            // TODO: Update keyboardListener_
+            break;
+
+        case KeyRelease:
+            // std::cout << "Key released: " << XLookupKeysym(&event.xkey, 0) << std::endl;
+            // TODO: Update keyboardListener_
+            break;
+
+        case ButtonPress:
+            // std::cout << "Mouse button pressed: " << event.xbutton.button << std::endl;
+            // TODO: Update mouseListener_
+            break;
+
+            // Fired when the user clicks the window's close button.
+        case ClientMessage:
+        {
+            if (static_cast<Atom>(event.xclient.data.l[0]) == wmDeleteWindow_) {
+                windowShouldClose_ = true;
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+
+void X11WindowManager::handleWindowEvent(const XEvent& event)
+{
+    // TODO
 }
 
 void* X11WindowManager::getWindowInstance()

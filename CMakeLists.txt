@@ -15,13 +15,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Build options
 option(WMA_BUILD_SHARED "Build shared library" OFF)
 option(WMA_ENABLE_GLFW "Enable GLFW backend" OFF)
-option(WMA_ENABLE_SDL "Enable SDL2 backend" OFF)
+option(WMA_ENABLE_SDL "Enable SDL2 backend" ON)
 option(WMA_ENABLE_X11 "Enable X11 backend" ON)
 option(WMA_BUILD_EXAMPLES "Build example applications" ON)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
 option(WMA_BUILD_TESTS "Build unit tests" OFF)
-option(WMA_ENABLE_VULKAN "Enable Vulkan support" ON)
-option(WMA_ENABLE_OPENGL "Enable OpenGL support" ON)
 
 # Validate options
 if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL AND NOT WMA_ENABLE_X11)
@@ -107,14 +105,6 @@ if(WMA_ENABLE_X11)
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_X11)
 endif()
 
-if(WMA_ENABLE_VULKAN)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_VULKAN)
-endif()
-
-if(WMA_ENABLE_OPENGL)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_OPENGL)
-endif()
-
 # Find and link dependencies
 set(ALL_LIBRARY_PATH "$ENV{LIBRARY_PATH}/lib")
 
@@ -144,31 +134,23 @@ endif()
 set(ALL_LIBRARY_PATH "$ENV{LIBRARY_PATH}/lib")
 
 # OpenGL/GLAD
-if(WMA_ENABLE_OPENGL)
-    find_package(glad HINTS ${ALL_LIBRARY_PATH})
-    target_link_libraries(${PROJECT_NAME} PUBLIC glad)
-endif()
+find_package(glad HINTS ${ALL_LIBRARY_PATH})
+target_link_libraries(${PROJECT_NAME} PUBLIC glad)
 
 # Platform-specific linking
 if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE user32 gdi32 winmm)
-    if(WMA_ENABLE_OPENGL)
-        target_link_libraries(${PROJECT_NAME} PRIVATE opengl32)
-    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE opengl32)
 elseif(APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         "-framework Cocoa"
         "-framework IOKit"
         "-framework CoreVideo"
     )
-    if(WMA_ENABLE_OPENGL)
-        target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL")
-    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-framework OpenGL")
 elseif(UNIX)
     target_link_libraries(${PROJECT_NAME} PRIVATE pthread dl)
-    if(WMA_ENABLE_OPENGL)
-        target_link_libraries(${PROJECT_NAME} PRIVATE GL)
-    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE GL)
 endif()
 
 # Configuration-specific flags
@@ -316,12 +298,8 @@ message(STATUS "  Tests:         ${WMA_BUILD_TESTS}")
 message(STATUS "  Auto-install:  ${WMA_AUTO_INSTALL}")
 message(STATUS "")
 message(STATUS "Graphics APIs:")
-if(WMA_ENABLE_VULKAN)
-    message(STATUS "  ✓ Vulkan")
-endif()
-if(WMA_ENABLE_OPENGL)
-    message(STATUS "  ✓ OpenGL")
-endif()
+message(STATUS "  ✓ Vulkan")
+message(STATUS "  ✓ OpenGL")
 if(WMA_ENABLE_SOFTWARE)
     message(STATUS "  ✓ Software/CPU")
 endif()

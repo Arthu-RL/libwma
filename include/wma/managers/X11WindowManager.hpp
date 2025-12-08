@@ -63,6 +63,10 @@ private:
     std::unique_ptr<KeyboardListener> keyboardListener_;
     std::unique_ptr<MouseListener> mouseListener_;
     bool windowShouldClose_;
+
+    // Event handling
+    void processEvents();
+    void handleWindowEvent(const XEvent& event);
 };
 
 }

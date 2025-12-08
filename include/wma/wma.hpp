@@ -149,12 +149,8 @@ namespace wma {
 #endif
 
             "\nGraphics APIs: "
-#ifdef WMA_ENABLE_VULKAN
             "Vulkan "
-#endif
-#ifdef WMA_ENABLE_OPENGL
             "OpenGL "
-#endif
             "\nBuilt with C++17";
 
         return info;

@@ -5,7 +5,6 @@
 
 #include <ink/InkAssert.h>
 #include <ink/Inkogger.h>
-#include <algorithm>
 
 #ifdef WMA_ENABLE_GLFW
 #include <GLFW/glfw3.h>
@@ -155,7 +154,7 @@ namespace wma {
         // Get initial cursor position
         f64 xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
-        currentPosition_ = MousePosition(xpos, ypos);
+        currentPosition_ = WMAMousePosition(xpos, ypos);
         lastPosition_ = currentPosition_;
         firstMouse_ = true;
 
@@ -176,12 +175,12 @@ namespace wma {
             event.button = unifiedButton;
 
             if (action == GLFW_PRESS) {
-                event.type = PendingEvent::ButtonPress;
+                event.type = PendingEvent::WMAButtonPress;
             } else if (action == GLFW_RELEASE) {
-                event.type = PendingEvent::ButtonRelease;
+                event.type = PendingEvent::WMAButtonRelease;
             }
 
-            if (event.type != PendingEvent::None) {
+            if (event.type != PendingEvent::WMANone) {
                 processPendingEvents(event);
             }
         }
@@ -190,32 +189,32 @@ namespace wma {
     void MouseListener::handleGLFWPositionEvent(f64 xpos, f64 ypos)
     {
         if (firstMouse_) {
-            lastPosition_ = MousePosition(xpos, ypos);
+            lastPosition_ = WMAMousePosition(xpos, ypos);
             firstMouse_ = false;
         }
 
         f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
         f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
 
-        currentPosition_ = MousePosition(xpos, ypos, deltaX, deltaY);
+        currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
 
         // Defer execution instead of immediate callback
         if (moveAction_.hasMoveAction()) {
             PendingEvent event;
-            event.type = PendingEvent::Move;
+            event.type = PendingEvent::WMAMove;
             event.position = currentPosition_;
             processPendingEvents(event);
         }
 
-        lastPosition_ = MousePosition(xpos, ypos);
+        lastPosition_ = WMAMousePosition(xpos, ypos);
     }
 
     void MouseListener::handleGLFWScrollEvent(f64 xoffset, f64 yoffset)
     {
         if (scrollAction_.hasScrollAction()) {
             PendingEvent event;
-            event.type = PendingEvent::Scroll;
-            event.scroll = MouseScroll(xoffset, yoffset);
+            event.type = PendingEvent::WMAScroll;
+            event.scroll = WMAMouseScroll(xoffset, yoffset);
             processPendingEvents(event);
         }
     }
@@ -269,14 +268,14 @@ namespace wma {
     i32 MouseListener::convertGLFWButton(i32 glfwButton) const
     {
         switch (glfwButton) {
-        case GLFW_MOUSE_BUTTON_LEFT:   return MouseButton::Left;
-        case GLFW_MOUSE_BUTTON_RIGHT:  return MouseButton::Right;
-        case GLFW_MOUSE_BUTTON_MIDDLE: return MouseButton::Middle;
-        case GLFW_MOUSE_BUTTON_4:      return MouseButton::Button4;
-        case GLFW_MOUSE_BUTTON_5:      return MouseButton::Button5;
-        case GLFW_MOUSE_BUTTON_6:      return MouseButton::Button6;
-        case GLFW_MOUSE_BUTTON_7:      return MouseButton::Button7;
-        case GLFW_MOUSE_BUTTON_8:      return MouseButton::Button8;
+        case GLFW_MOUSE_BUTTON_LEFT:   return MouseButton::WMALeft;
+        case GLFW_MOUSE_BUTTON_RIGHT:  return MouseButton::WMARight;
+        case GLFW_MOUSE_BUTTON_MIDDLE: return MouseButton::WMAMiddle;
+        case GLFW_MOUSE_BUTTON_4:      return MouseButton::WMAButton4;
+        case GLFW_MOUSE_BUTTON_5:      return MouseButton::WMAButton5;
+        case GLFW_MOUSE_BUTTON_6:      return MouseButton::WMAButton6;
+        case GLFW_MOUSE_BUTTON_7:      return MouseButton::WMAButton7;
+        case GLFW_MOUSE_BUTTON_8:      return MouseButton::WMAButton8;
         default:                       return glfwButton;
         }
     }

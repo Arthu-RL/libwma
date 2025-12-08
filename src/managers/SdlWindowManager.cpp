@@ -1,20 +1,16 @@
+#ifdef WMA_ENABLE_SDL
+
 #include "wma/managers/SdlWindowManager.hpp"
 #include "wma/core/FrameTimer.hpp"
 #include "wma/exceptions/WMAException.hpp"
 
-#ifdef WMA_ENABLE_SDL
-
 #include <SDL2/SDL.h>
 #include <iostream>
 
-#ifdef WMA_ENABLE_VULKAN
-    #include <SDL2/SDL_vulkan.h>
-#endif
+#include <SDL2/SDL_vulkan.h>
 
-#ifdef WMA_ENABLE_OPENGL
-    #include <glad/glad.h>
-    #include <SDL2/SDL_opengl.h>
-#endif
+#include <glad/glad.h>
+#include <SDL2/SDL_opengl.h>
 
 namespace wma {
 
@@ -88,7 +84,6 @@ namespace wma {
         SDL_SetWindowData(window_, "WindowFlags", &windowFlags_);
 
         // Initialize graphics context
-#ifdef WMA_ENABLE_OPENGL
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
             SDL_GLContext glContext = SDL_GL_CreateContext(window_);
             if (!glContext) {
@@ -107,7 +102,6 @@ namespace wma {
             // Set VSync
             SDL_GL_SetSwapInterval(windowDetails_.vsync ? 1 : 0);
         }
-#endif
 
         // Initialize keyboard listener
         keyboardListener_->initializeSDL(window_);
@@ -120,28 +114,20 @@ namespace wma {
         timer.setTargetFPS(windowDetails_.targetFPS);
 
         while (!windowShouldClose_) {
-            processEvents();
-
             timer.updateDeltaTime();
-            windowFlags_.frameCounter++;
+
+            processEvents();
             
-            // Reset frame-specific flags
-            windowFlags_.resetFrameFlags();
-            
-#ifdef WMA_ENABLE_OPENGL
             if (graphicsAPI_ == GraphicsAPI::OpenGL) {
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             }
-#endif
 
             // Execute user actions (draw, update, etc.)
             actions();
 
-#ifdef WMA_ENABLE_OPENGL
             if (graphicsAPI_ == GraphicsAPI::OpenGL) {
                 SDL_GL_SwapWindow(window_);
             }
-#endif
 
             timer.limitFrameRate();
         }
@@ -150,25 +136,22 @@ namespace wma {
     u32 SdlWindowManager::getSDLWindowFlags() const {
         u32 flags = 0;
 
-        switch (graphicsAPI_) {
-#ifdef WMA_ENABLE_VULKAN
-        case GraphicsAPI::Vulkan:
-            flags |= SDL_WINDOW_VULKAN;
-            break;
-#endif
+        switch (graphicsAPI_)
+        {
+            case GraphicsAPI::Vulkan:
+                flags |= SDL_WINDOW_VULKAN;
+                break;
 
-#ifdef WMA_ENABLE_OPENGL
-        case GraphicsAPI::OpenGL:
-            flags |= SDL_WINDOW_OPENGL;
-            break;
-#endif
+            case GraphicsAPI::OpenGL:
+                flags |= SDL_WINDOW_OPENGL;
+                break;
 
-        case GraphicsAPI::CPU:
-            // No special flags needed for CPU rendering
-            break;
+            case GraphicsAPI::CPU:
+                // No special flags needed for CPU rendering
+                break;
 
-        default:
-            throw GraphicsException("Unsupported graphics API for SDL");
+            default:
+                throw GraphicsException("Unsupported graphics API for SDL");
         }
 
         return flags;
@@ -187,7 +170,6 @@ namespace wma {
     }
 
     const std::vector<const char*> SdlWindowManager::getVulkanExtensions() const {
-#ifdef WMA_ENABLE_VULKAN
         u32 extensionCount = 0;
         if (!SDL_Vulkan_GetInstanceExtensions(window_, &extensionCount, nullptr)) {
             throw GraphicsException("Failed to get Vulkan extension count: " + std::string(SDL_GetError()));
@@ -199,9 +181,6 @@ namespace wma {
         }
 
         return extensions;
-#else
-        throw GraphicsException("Vulkan support not compiled in");
-#endif
     }
 
     KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept {
@@ -290,7 +269,6 @@ namespace wma {
         }
 
         // Set OpenGL attributes if needed
-#ifdef WMA_ENABLE_OPENGL
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
@@ -299,16 +277,14 @@ namespace wma {
             SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
             SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
         }
-#endif
 
         // Load Vulkan library if needed
-#ifdef WMA_ENABLE_VULKAN
         if (graphicsAPI_ == GraphicsAPI::Vulkan) {
             if (SDL_Vulkan_LoadLibrary(nullptr) != 0) {
                 throw GraphicsException("Failed to load Vulkan library: " + std::string(SDL_GetError()));
             }
         }
-#endif
+
         mouseListener_->setSensitivity(1.0); // Default
     }
 
@@ -316,11 +292,10 @@ namespace wma {
     {
         windowShouldClose_ = true;
 
-#ifdef WMA_ENABLE_OPENGL
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
             SDL_GL_DeleteContext(SDL_GL_GetCurrentContext());
         }
-#endif
+
         if (window_) {
             SDL_DestroyWindow(window_);
         }

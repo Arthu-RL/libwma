@@ -6,7 +6,7 @@
 int main() {
     try {
         // Configure window
-        wma::WindowDetails windowConfig(1280, 720, true, 60);
+        wma::WindowDetails windowConfig(1280, 720, true, 0);
 
         // Create window manager (uses default backend)
         auto windowManager = wma::createWindowManager(
@@ -45,8 +45,7 @@ int main() {
             // Print FPS every 60 frames
             if (frameCount % 60 == 0) {
                 auto* flags = windowManager->getWindowFlags();
-                INK_LOG << "Frame: " << flags->frameCounter
-                         << " | FPS: " << flags->fps 
+                INK_LOG  << " | FPS: " << flags->fps
                          << " | Delta: " << flags->deltaTime << "ms\n";
             }
 
@@ -54,14 +53,7 @@ int main() {
             auto* flags = windowManager->getWindowFlags();
             if (flags->resized) {
                 INK_LOG << "Window resized!\n";
-                flags->resetFrameFlags();
-            }
-
-            // Example: Exit after 10 seconds (600 frames at 60 FPS)
-            if (frameCount > 600) {
-                running = false;
-                // For GLFW: glfwSetWindowShouldClose(window, true);
-                // For SDL2: handled internally by the manager
+                flags->resized = false;
             }
         });
 

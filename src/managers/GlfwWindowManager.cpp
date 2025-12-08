@@ -165,20 +165,14 @@ namespace wma {
             glfwPollEvents();
 
             timer.updateDeltaTime();
-            windowFlags_.frameCounter++;
-            
-            // Reset frame-specific flags
-            windowFlags_.resetFrameFlags();
             
             // Execute user actions
             actions();
 
-#ifdef WMA_ENABLE_OPENGL
             if (graphicsAPI_ == GraphicsAPI::OpenGL) {
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
                 glfwSwapBuffers(window_);
             }
-#endif
 
             timer.limitFrameRate();
         }
