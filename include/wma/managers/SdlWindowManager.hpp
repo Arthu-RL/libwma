@@ -1,8 +1,11 @@
 #ifndef WMA_MANAGERS_SDL_WINDOW_MANAGER_HPP
 #define WMA_MANAGERS_SDL_WINDOW_MANAGER_HPP
 
-#include "IWindowManager.hpp"
 #include <memory>
+
+#include "wma/input/mouse/SDLMouseListener.hpp"
+#include "wma/input/keyboard/SDLKeyboardListener.hpp"
+#include "IWindowManager.hpp"
 
 // Forward declarations
 struct SDL_Window;
@@ -60,13 +63,13 @@ namespace wma {
         WindowDetails windowDetails_;
         WindowFlags windowFlags_;
         GraphicsAPI graphicsAPI_;
-        std::unique_ptr<KeyboardListener> keyboardListener_;
-        std::unique_ptr<MouseListener> mouseListener_;
+        std::unique_ptr<SDLKeyboardListener> keyboardListener_;
+        std::unique_ptr<SDLMouseListener> mouseListener_;
         bool windowShouldClose_;
         
         // Event handling
         void processEvents();
-        void handleWindowEvent(const SDL_Event& event);
+        void handleWindowEvent(const SDL_Event* event);
         
         // Helper methods
         void initializeSDL();

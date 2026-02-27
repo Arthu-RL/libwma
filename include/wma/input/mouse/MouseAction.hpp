@@ -42,14 +42,18 @@ public:
     using WMAPositionCallback = std::function<void(const WMAMousePosition&)>;
     using WMAScrollCallback = std::function<void(const WMAMouseScroll&)>;
 
-    MouseAction(WMAButtonCallback onPress = nullptr,
-                WMAButtonCallback onRelease = nullptr,
-                WMAPositionCallback onMove = nullptr,
-                WMAScrollCallback onScroll = nullptr)
+    MouseAction() = default;
+
+    MouseAction(WMAButtonCallback onPress,
+                WMAButtonCallback onRelease)
         : onPress_(std::move(onPress))
-        , onRelease_(std::move(onRelease))
-        , onMove_(std::move(onMove))
-        , onScroll_(std::move(onScroll)) {}
+        , onRelease_(std::move(onRelease)) {}
+
+    explicit MouseAction(WMAPositionCallback onMove)
+        : onMove_(std::move(onMove)) {}
+
+    explicit MouseAction(WMAScrollCallback onScroll)
+        : onScroll_(std::move(onScroll)) {}
 
     // Copy constructor
     MouseAction(const MouseAction& other) = default;
@@ -62,6 +66,25 @@ public:
 
     // Move assignment
     MouseAction& operator=(MouseAction&& other) noexcept = default;
+
+    /**
+     * @brief Check if press action is available
+     */
+    bool hasPressAction() const    { return static_cast<bool>(onPress_); }
+
+    /**
+     * @brief Check if release action is available
+     */
+    bool hasReleaseAction() const  { return static_cast<bool>(onRelease_); }
+    /**
+     * @brief Check if movement action is available
+     */
+    bool hasMoveAction() const     { return static_cast<bool>(onMove_); }
+
+    /**
+     * @brief Check if scroll action is available
+     */
+    bool hasScrollAction() const   { return static_cast<bool>(onScroll_); }
 
     /**
      * @brief Execute the press action if available
@@ -89,34 +112,6 @@ public:
      */
     void executeScroll(const WMAMouseScroll& scroll) const {
         onScroll_(scroll);
-    }
-
-    /**
-     * @brief Check if press action is available
-     */
-    bool hasPressAction() const {
-        return onPress_ && onPress_.target<void()>() != nullptr;
-    }
-
-    /**
-     * @brief Check if release action is available
-     */
-    bool hasReleaseAction() const {
-        return onRelease_ && onRelease_.target<void()>() != nullptr;
-    }
-
-    /**
-     * @brief Check if movement action is available
-     */
-    bool hasMoveAction() const {
-        return onMove_ && onMove_.target<void(const WMAMousePosition&)>() != nullptr;
-    }
-
-    /**
-     * @brief Check if scroll action is available
-     */
-    bool hasScrollAction() const {
-        return onScroll_ && onScroll_.target<void(const WMAMouseScroll&)>() != nullptr;
     }
 
 private:

@@ -33,21 +33,38 @@ int main() {
             []() { INK_LOG << "Space released\n"; }
         });
 
+        auto& mouse = windowManager->getMouseListener();
+
+        mouse.addButtonAction(wma::MouseButton::WMALeft, wma::MouseAction({
+            []() { INK_LOG << "mouse left pressed\n"; },
+            []() { INK_LOG << "mouse left released\n"; }
+        }));
+
+        mouse.setMoveAction(wma::MouseAction([&](const wma::WMAMousePosition& pos){
+            INK_LOG << "mouse move " << pos.x << " " << pos.y;
+        }));
+
+        mouse.setScrollAction(wma::MouseAction([&](const wma::WMAMouseScroll& offset){
+            INK_LOG << "scroll offset " << offset.xOffset << " " << offset.yOffset;
+        }));
+
+
         // Variable to track state
         bool running = true;
-        int frameCount = 0;
+        unsigned long long frameCount = 0;
 
         // Main loop
         windowManager->process([&]() {
             // Your rendering/update code goes here
             frameCount++;
 
-            // Print FPS every 60 frames
-            if (frameCount % 60 == 0) {
-                auto* flags = windowManager->getWindowFlags();
-                INK_LOG  << " | FPS: " << flags->fps
-                         << " | Delta: " << flags->deltaTime << "ms\n";
-            }
+            // Print FPS
+            // if (frameCount % 1000 == 0) {
+            //     auto* flags = windowManager->getWindowFlags();
+            //     INK_LOG  << " | FPS: " << flags->fps
+            //              << " | COUNTER: " << frameCount
+            //              << " | Delta: " << flags->deltaTime << "ms\n";
+            // }
 
             // Handle window resize
             auto* flags = windowManager->getWindowFlags();

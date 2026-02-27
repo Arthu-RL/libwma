@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "wma/input/mouse/GLFWMouseListener.hpp"
+#include "wma/input/keyboard/GLFWKeyboardListener.hpp"
 #include "IWindowManager.hpp"
 
 // Forward declarations
@@ -61,8 +63,8 @@ namespace wma {
         WindowDetails windowDetails_;
         WindowFlags windowFlags_;
         GraphicsAPI graphicsAPI_;
-        std::unique_ptr<KeyboardListener> keyboardListener_;
-        std::unique_ptr<MouseListener> mouseListener_;
+        std::unique_ptr<GLFWKeyboardListener> keyboardListener_;
+        std::unique_ptr<GLFWMouseListener> mouseListener_;
         std::unique_ptr<GlfwUserData> userData_;
         bool windowShouldClose_;
         

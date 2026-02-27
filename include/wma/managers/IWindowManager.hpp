@@ -8,8 +8,8 @@
 #include "../core/Types.hpp"
 #include "../core/WindowDetails.hpp"
 #include "../core/WindowFlags.hpp"
-#include "../input/KeyboardListener.hpp"
-#include "../input/MouseListener.hpp"
+#include "../input/keyboard/KeyboardListener.hpp"
+#include "../input/mouse/MouseListener.hpp"
 
 namespace wma {
 

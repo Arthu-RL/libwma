@@ -19,8 +19,8 @@ namespace wma {
         , windowDetails_(windowDetails)
         , windowFlags_{}
         , graphicsAPI_(graphicsAPI)
-        , keyboardListener_(std::make_unique<KeyboardListener>())
-        , mouseListener_(std::make_unique<MouseListener>())
+        , keyboardListener_(std::make_unique<SDLKeyboardListener>())
+        , mouseListener_(std::make_unique<SDLMouseListener>())
         , windowShouldClose_(false)
     {
         initializeSDL();
@@ -104,7 +104,7 @@ namespace wma {
         }
 
         // Initialize keyboard listener
-        keyboardListener_->initializeSDL(window_);
+        keyboardListener_->initialize(window_);
 
         std::cout << "SDL window created: " << windowName << std::endl;
     }
@@ -212,19 +212,19 @@ namespace wma {
                     break;
                     
                 case SDL_WINDOWEVENT:
-                    handleWindowEvent(event);
+                    handleWindowEvent(&event);
                     break;
                     
                 case SDL_KEYDOWN:
                 case SDL_KEYUP:
-                    keyboardListener_->handleSDLKeyEvent(event.key);
+                    keyboardListener_->handleKeyEvent(event.key);
                     break;
 
                 case SDL_MOUSEBUTTONDOWN:
                 case SDL_MOUSEBUTTONUP:
                 case SDL_MOUSEMOTION:
                 case SDL_MOUSEWHEEL:
-                    mouseListener_->handleSDLEvent(event);
+                    mouseListener_->handleEvent(event);
                     break;
 
                 default:
@@ -233,12 +233,12 @@ namespace wma {
         }
     }
 
-    void SdlWindowManager::handleWindowEvent(const SDL_Event& event) {
-        switch (event.window.event) {
+    void SdlWindowManager::handleWindowEvent(const SDL_Event* event) {
+        switch (event->window.event) {
             case SDL_WINDOWEVENT_RESIZED:
             case SDL_WINDOWEVENT_SIZE_CHANGED:
-                windowDetails_.width = event.window.data1;
-                windowDetails_.height = event.window.data2;
+                windowDetails_.width = event->window.data1;
+                windowDetails_.height = event->window.data2;
                 windowFlags_.resized = true;
                 break;
                 

@@ -17,13 +17,14 @@ option(WMA_BUILD_SHARED "Build shared library" OFF)
 option(WMA_ENABLE_GLFW "Enable GLFW backend" OFF)
 option(WMA_ENABLE_SDL "Enable SDL2 backend" ON)
 option(WMA_ENABLE_X11 "Enable X11 backend" ON)
+option(WMA_ENABLE_WAYLAND "Enable Wayland backend" ON)
 option(WMA_BUILD_EXAMPLES "Build example applications" ON)
 option(WMA_AUTO_INSTALL "Auto Install WMA lib" ON)
 option(WMA_BUILD_TESTS "Build unit tests" OFF)
 
 # Validate options
-if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL AND NOT WMA_ENABLE_X11)
-    message(FATAL_ERROR "At least one backend (GLFW or SDL or X11) must be enabled")
+if(NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_SDL AND NOT WMA_ENABLE_X11 AND NOT WMA_ENABLE_WAYLAND)
+    message(FATAL_ERROR "At least one backend (GLFW or SDL or X11 or WAYLAND) must be enabled")
 endif()
 
 if(WMA_BUILD_SHARED)
@@ -69,6 +70,14 @@ if(WMA_ENABLE_SDL)
     )
 endif()
 
+if(WMA_ENABLE_WAYLAND)
+    list(APPEND WMA_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/managers/xdg-shell-protocol.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/managers/WaylandWindowManager.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/managers/WaylandWindowManager.cpp
+    )
+endif()
+
 if(WMA_ENABLE_X11)
     list(APPEND WMA_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/managers/X11WindowManager.hpp
@@ -101,6 +110,10 @@ if(WMA_ENABLE_SDL)
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_SDL)
 endif()
 
+if(WMA_ENABLE_WAYLAND)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_WAYLAND)
+endif()
+
 if(WMA_ENABLE_X11)
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_X11)
 endif()
@@ -122,6 +135,27 @@ endif()
 if(WMA_ENABLE_SDL)
     find_package(SDL2 HINTS ${ALL_LIBRARY_PATH})
     target_link_libraries(${PROJECT_NAME} PUBLIC SDL2)
+endif()
+
+# WAYLAND
+if(WMA_ENABLE_WAYLAND)
+    find_package(PkgConfig REQUIRED)
+
+    pkg_check_modules(WAYLAND REQUIRED
+        wayland-client
+        wayland-cursor
+        xkbcommon
+    )
+
+    target_include_directories(${PROJECT_NAME} PUBLIC
+        ${WAYLAND_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(${PROJECT_NAME} PUBLIC
+        ${WAYLAND_LIBRARIES}
+    )
+
+    target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_USE_WAYLAND)
 endif()
 
 # X11
@@ -287,6 +321,9 @@ if(WMA_ENABLE_GLFW)
 endif()
 if(WMA_ENABLE_SDL)
     message(STATUS "  ✓ SDL2")
+endif()
+if(WMA_ENABLE_WAYLAND)
+    message(STATUS "  ✓ WAYLAND")
 endif()
 if(WMA_ENABLE_X11)
     message(STATUS "  ✓ X11")

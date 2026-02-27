@@ -24,9 +24,9 @@
 #include "exceptions/WMAException.hpp"
 
 // Input handling
-#include "input/Keys.h"
-#include "input/KeyAction.hpp"
-#include "input/KeyboardListener.hpp"
+#include "input/keyboard/Keys.h"
+#include "input/keyboard/KeyAction.hpp"
+#include "input/keyboard/KeyboardListener.hpp"
 
 // Window management
 #include "managers/IWindowManager.hpp"
@@ -38,6 +38,10 @@
 
 #ifdef WMA_ENABLE_SDL
     #include "managers/SdlWindowManager.hpp"
+#endif
+
+#ifdef WMA_ENABLE_WAYLAND
+#include "managers/WaylandWindowManager.hpp"
 #endif
 
 #ifdef WMA_ENABLE_X11
@@ -78,6 +82,11 @@ namespace wma {
             return std::make_unique<SdlWindowManager>(windowDetails, graphicsAPI);
 #endif
 
+#ifdef WMA_ENABLE_WAYLAND
+        case WindowBackend::WAYLAND:
+            return std::make_unique<WaylandWindowManager>(windowDetails, graphicsAPI);
+#endif
+
 #ifdef WMA_ENABLE_X11
         case WindowBackend::X11:
             return std::make_unique<X11WindowManager>(windowDetails, graphicsAPI);
@@ -97,6 +106,8 @@ namespace wma {
         return WindowBackend::GLFW;
 #elif defined(WMA_ENABLE_SDL)
         return WindowBackend::SDL2;
+#elif WMA_ENABLE_WAYLAND
+        return WindowBackend::WAYLAND;
 #elif defined(WMA_ENABLE_X11)
         return WindowBackend::X11;
 #else
@@ -118,6 +129,11 @@ namespace wma {
 
 #ifdef WMA_ENABLE_SDL
         case WindowBackend::SDL2:
+            return true;
+#endif
+
+#ifdef WMA_ENABLE_WAYLAND
+        case WindowBackend::WAYLAND:
             return true;
 #endif
 
@@ -143,7 +159,10 @@ namespace wma {
 #endif
 #ifdef WMA_ENABLE_SDL
             "SDL2 "
-#endif  
+#endif
+#ifdef WMA_ENABLE_WAYLAND
+        "WAYLAND "
+#endif
 #ifdef WMA_ENABLE_X11
             "X11 "
 #endif

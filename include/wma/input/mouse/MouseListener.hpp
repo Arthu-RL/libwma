@@ -1,17 +1,8 @@
 #ifndef WMA_INPUT_MOUSE_LISTENER_HPP
 #define WMA_INPUT_MOUSE_LISTENER_HPP
 
-#include "wma/input/MouseAction.hpp"
+#include "MouseAction.hpp"
 #include <unordered_map>
-
-#ifdef WMA_ENABLE_GLFW
-struct GLFWwindow;
-#endif
-
-#ifdef WMA_ENABLE_SDL
-struct SDL_Window;
-union SDL_Event;
-#endif
 
 namespace wma {
 
@@ -22,16 +13,13 @@ struct PendingEvent {
         WMAScroll,
         WMAButtonPress,
         WMAButtonRelease
-    } type = WMANone;  // Initialize to None
+    } type = WMANone;
 
-    WMAMousePosition position{};  // Default initialize
-    WMAMouseScroll scroll{};      // Default initialize
-    i32 button = -1;          // Initialize to invalid button
+    WMAMousePosition position{};
+    WMAMouseScroll scroll{};
+    i32 button = -1;
 
-    // Default constructor
     PendingEvent() = default;
-
-    // Explicit constructors
     explicit PendingEvent(WMAType t) : type(t) {}
     PendingEvent(WMAType t, const WMAMousePosition& pos) : type(t), position(pos) {}
     PendingEvent(WMAType t, const WMAMouseScroll& s) : type(t), scroll(s) {}
@@ -41,7 +29,7 @@ struct PendingEvent {
 class MouseListener {
 public:
     MouseListener();
-    ~MouseListener();
+    virtual ~MouseListener();
 
     // Action management
     void addButtonAction(i32 button, MouseAction action);
@@ -58,48 +46,24 @@ public:
     void setSensitivity(f64 sensitivity);
     f64 getSensitivity() const;
 
+    // Event processing
     void processPendingEvents(const PendingEvent& event);
 
-#ifdef WMA_ENABLE_GLFW
-    void initializeGLFW(GLFWwindow* window);
-    static void glfwMouseButtonCallback(GLFWwindow* window, i32 button, i32 action, i32 mods);
-    static void glfwCursorPosCallback(GLFWwindow* window, f64 xpos, f64 ypos);
-    static void glfwScrollCallback(GLFWwindow* window, f64 xoffset, f64 yoffset);
-#endif
+protected:
+    // Platform-specific methods to be overridden
+    virtual void updateCursorState() = 0;
 
-#ifdef WMA_ENABLE_SDL
-    void initializeSDL(SDL_Window* window);
-    void handleSDLEvent(const SDL_Event& event);
-#endif
-
-private:
     // Core state
     std::unordered_map<i32, MouseAction> buttonActions_;
     MouseAction moveAction_;
     MouseAction scrollAction_;
+
     WMAMousePosition currentPosition_;
     WMAMousePosition lastPosition_;
+
     bool cursorEnabled_ = true;
     f64 sensitivity_ = 1.0;
     bool firstMouse_ = true;
-
-#ifdef WMA_ENABLE_GLFW
-    GLFWwindow* glfwWindow_ = nullptr;
-
-    void handleGLFWButtonEvent(i32 button, i32 action, i32 mods);
-    void handleGLFWPositionEvent(f64 xpos, f64 ypos);
-    void handleGLFWScrollEvent(f64 xoffset, f64 yoffset);
-    void updateCursorStateGLFW();
-    i32 convertGLFWButton(i32 glfwButton) const;
-    static MouseListener* getInstanceFromGLFW(GLFWwindow* window);
-#endif
-
-#ifdef WMA_ENABLE_SDL
-    SDL_Window* sdlWindow_ = nullptr;
-
-    void updateCursorStateSDL();
-    i32 convertSDLButton(i32 sdlButton) const;
-#endif
 };
 
 } // namespace wma

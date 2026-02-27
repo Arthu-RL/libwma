@@ -1,10 +1,13 @@
+#ifdef WMA_ENABLE_X11
 #ifndef WMA_MANAGERS_X11WINDOWMANAGER_HPP
 #define WMA_MANAGERS_X11WINDOWMANAGER_HPP
 
-#include "IWindowManager.hpp"
-
 #include <X11/Xlib.h>
 #include <memory>
+
+#include "wma/input/mouse/X11MouseListener.hpp"
+#include "wma/input/keyboard/X11KeyboardListener.hpp"
+#include "IWindowManager.hpp"
 
 namespace wma {
 
@@ -60,15 +63,16 @@ private:
     WindowDetails windowDetails_;
     WindowFlags windowFlags_;
     GraphicsAPI graphicsAPI_;
-    std::unique_ptr<KeyboardListener> keyboardListener_;
-    std::unique_ptr<MouseListener> mouseListener_;
+    std::unique_ptr<X11KeyboardListener> keyboardListener_;
+    std::unique_ptr<X11MouseListener> mouseListener_;
     bool windowShouldClose_;
 
     // Event handling
     void processEvents();
-    void handleWindowEvent(const XEvent& event);
+    void handleWindowEvent(const XEvent* event);
 };
 
 }
 
 #endif // X11WINDOWMANAGER_H
+#endif

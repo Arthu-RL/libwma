@@ -18,8 +18,8 @@ namespace wma {
         , windowDetails_(windowDetails)
         , windowFlags_{}
         , graphicsAPI_(graphicsAPI)
-        , keyboardListener_(std::make_unique<KeyboardListener>())
-        , mouseListener_(std::make_unique<MouseListener>())
+        , keyboardListener_(std::make_unique<GLFWKeyboardListener>())
+        , mouseListener_(std::make_unique<GLFWMouseListener>())
         , userData_(std::make_unique<GlfwUserData>())
         , windowShouldClose_(false)
     {
@@ -151,8 +151,8 @@ namespace wma {
 #endif
 
         // Initialize input listeners
-        keyboardListener_->initializeGLFW(window_);
-        mouseListener_->initializeGLFW(window_);
+        keyboardListener_->initialize(window_);
+        mouseListener_->initialize(window_);
 
         INK_LOG << "GLFW window created: " << windowName;
     }

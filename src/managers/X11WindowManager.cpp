@@ -1,3 +1,4 @@
+#ifdef WMA_ENABLE_X11
 #include "wma/managers/X11WindowManager.hpp"
 
 #include "wma/core/FrameTimer.hpp"
@@ -16,8 +17,8 @@ X11WindowManager::X11WindowManager(const WindowDetails& windowDetails,
     , windowDetails_(windowDetails)
     , windowFlags_{}
     , graphicsAPI_(graphicsAPI)
-    , keyboardListener_(std::make_unique<KeyboardListener>())
-    , mouseListener_(std::make_unique<MouseListener>())
+    , keyboardListener_(std::make_unique<X11KeyboardListener>())
+    , mouseListener_(std::make_unique<X11MouseListener>())
     , windowShouldClose_(false)
 {
     // Empty
@@ -93,31 +94,16 @@ void X11WindowManager::processEvents()
 
     XNextEvent(display_, &event);
 
+    handleWindowEvent(&event);
+
     switch (event.type)
     {
         case Expose:
             break;
-        // Fired on window resize or move.
-        case ConfigureNotify:
-        {
-            XConfigureEvent xce = event.xconfigure;
-            if (xce.width != windowDetails_.width || xce.height != windowDetails_.height) {
-                windowDetails_.width = xce.width;
-                windowDetails_.height = xce.height;
-                windowFlags_.resized = true;
-            }
-            break;
-        }
-
             // --- Input Events ---
         case KeyPress:
-            // std::cout << "Key pressed: " << XLookupKeysym(&event.xkey, 0) << std::endl;
-            // TODO: Update keyboardListener_
-            break;
-
         case KeyRelease:
-            // std::cout << "Key released: " << XLookupKeysym(&event.xkey, 0) << std::endl;
-            // TODO: Update keyboardListener_
+            keyboardListener_->handleKeyEvent(XLookupKeysym(&event.xkey, 0), event.xkey);
             break;
 
         case ButtonPress:
@@ -139,9 +125,24 @@ void X11WindowManager::processEvents()
     }
 }
 
-void X11WindowManager::handleWindowEvent(const XEvent& event)
+void X11WindowManager::handleWindowEvent(const XEvent* event)
 {
-    // TODO
+    switch (event->type)
+    {
+        // Fired on window resize or move.
+        case ResizeRequest:
+        {
+            XConfigureEvent xce = event->xconfigure;
+            if (xce.width != windowDetails_.width || xce.height != windowDetails_.height) {
+                windowDetails_.width = xce.width;
+                windowDetails_.height = xce.height;
+                windowFlags_.resized = true;
+            }
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void* X11WindowManager::getWindowInstance()
@@ -204,3 +205,4 @@ WmaCode X11WindowManager::destroy()
 }
 
 }
+#endif
