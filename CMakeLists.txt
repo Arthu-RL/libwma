@@ -131,32 +131,38 @@ if(WMA_ENABLE_WAYLAND)
     find_program(WAYLAND_SCANNER_EXE wayland-scanner REQUIRED)
     pkg_get_variable(WAYLAND_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 
-    # Define paths inside the build target sandbox tree
     set(XDG_SHELL_XML "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml")
-    set(GENERATED_WAYLAND_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/wayland")
-    set(XDG_SHELL_HEADER "${GENERATED_WAYLAND_DIR}/xdg-shell-client-protocol.h")
-    set(XDG_SHELL_CODE "${GENERATED_WAYLAND_DIR}/xdg-shell-protocol.c")
 
-    # Wire compilation commands to automatically run wayland-scanner
+    # 1. Establish a mirrored include root directory inside the build sandbox
+    set(GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+    set(XDG_SHELL_HEADER_DIR "${GENERATED_INCLUDE_DIR}/wma/backends/wayland/protocols")
+
+    set(XDG_SHELL_HEADER "${XDG_SHELL_HEADER_DIR}/xdg-shell-client-protocol.h")
+    set(XDG_SHELL_CODE "${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.c")
+
+    # 2. Wire the generator commands to match your C++ include syntax paths
     add_custom_command(
         OUTPUT ${XDG_SHELL_HEADER}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${GENERATED_WAYLAND_DIR}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${XDG_SHELL_HEADER_DIR}
         COMMAND ${WAYLAND_SCANNER_EXE} client-header ${XDG_SHELL_XML} ${XDG_SHELL_HEADER}
         DEPENDS ${XDG_SHELL_XML}
-        COMMENT "Wayland Pipeline: Generating toolchain client header -> xdg-shell"
+        COMMENT "Wayland Pipeline: Generating toolchain public client header"
     )
 
     add_custom_command(
         OUTPUT ${XDG_SHELL_CODE}
         COMMAND ${WAYLAND_SCANNER_EXE} private-code ${XDG_SHELL_XML} ${XDG_SHELL_CODE}
         DEPENDS ${XDG_SHELL_XML} ${XDG_SHELL_HEADER}
-        COMMENT "Wayland Pipeline: Generating toolchain private source -> xdg-shell"
+        COMMENT "Wayland Pipeline: Generating toolchain private source"
     )
 
-    # Apply configuration to target context
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_WAYLAND)
     target_link_libraries(${PROJECT_NAME} PUBLIC PkgConfig::WAYLAND)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${GENERATED_WAYLAND_DIR})
+
+    # 3. Propagate the folder structures down to internal modules and target consumers
+    target_include_directories(${PROJECT_NAME} PUBLIC
+        $<BUILD_INTERFACE:${GENERATED_INCLUDE_DIR}>
+    )
 
     target_sources(${PROJECT_NAME} PRIVATE
         src/backends/wayland/WaylandWindowManager.cpp
@@ -167,6 +173,11 @@ if(WMA_ENABLE_WAYLAND)
         include/wma/backends/wayland/WaylandMouseListener.hpp
         ${XDG_SHELL_HEADER}
         ${XDG_SHELL_CODE}
+    )
+
+    # 4. Install the generated file alongside the library for downstream engine use
+    install(FILES ${XDG_SHELL_HEADER}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wma/backends/wayland/protocols
     )
 endif()
 
