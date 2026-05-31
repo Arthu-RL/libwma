@@ -1,8 +1,7 @@
-#ifdef WMA_ENABLE_GLFW
-#ifndef WMA_INPUT_GLFW_MOUSE_LISTENER_HPP
-#define WMA_INPUT_GLFW_MOUSE_LISTENER_HPP
+#ifndef WMA_BACKENDS_GLFW_MOUSE_LISTENER_HPP
+#define WMA_BACKENDS_GLFW_MOUSE_LISTENER_HPP
 
-#include "MouseListener.hpp"
+#include "wma/input/mouse/MouseListener.hpp"
 
 struct GLFWwindow;
 
@@ -15,7 +14,6 @@ public:
 
     void initialize(GLFWwindow* window);
 
-    // Static GLFW callbacks
     static void glfwMouseButtonCallback(GLFWwindow* window, i32 button, i32 action, i32 mods);
     static void glfwCursorPosCallback(GLFWwindow* window, f64 xpos, f64 ypos);
     static void glfwScrollCallback(GLFWwindow* window, f64 xoffset, f64 yoffset);
@@ -36,5 +34,4 @@ private:
 
 } // namespace wma
 
-#endif // WMA_INPUT_GLFW_MOUSE_LISTENER_HPP
-#endif
+#endif // WMA_BACKENDS_GLFW_MOUSE_LISTENER_HPP

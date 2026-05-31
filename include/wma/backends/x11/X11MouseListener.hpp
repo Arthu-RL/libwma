@@ -1,7 +1,7 @@
-#ifndef WMA_INPUT_X11_MOUSE_LISTENER_HPP
-#define WMA_INPUT_X11_MOUSE_LISTENER_HPP
+#ifndef WMA_BACKENDS_X11_MOUSE_LISTENER_HPP
+#define WMA_BACKENDS_X11_MOUSE_LISTENER_HPP
 
-#include "MouseListener.hpp"
+#include "wma/input/mouse/MouseListener.hpp"
 #include <X11/Xlib.h>
 
 namespace wma {
@@ -28,4 +28,4 @@ private:
 
 } // namespace wma
 
-#endif // WMA_INPUT_X11_MOUSE_LISTENER_HPP
+#endif // WMA_BACKENDS_X11_MOUSE_LISTENER_HPP

@@ -1,50 +1,36 @@
-#ifndef WMA_MANAGERS_GLFW_WINDOW_MANAGER_HPP
-#define WMA_MANAGERS_GLFW_WINDOW_MANAGER_HPP
+#ifndef WMA_BACKENDS_GLFW_WINDOW_MANAGER_HPP
+#define WMA_BACKENDS_GLFW_WINDOW_MANAGER_HPP
 
 #include <memory>
 
-#include "wma/input/mouse/GLFWMouseListener.hpp"
-#include "wma/input/keyboard/GLFWKeyboardListener.hpp"
-#include "IWindowManager.hpp"
+#include "GLFWMouseListener.hpp"
+#include "GLFWKeyboardListener.hpp"
+#include "wma/managers/IWindowManager.hpp"
 
-// Forward declarations
 struct GLFWwindow;
 
 namespace wma {
 
-    // Forward declaration for user data structure
-    struct GlfwUserData;
+    class KeyboardListener;
+    class MouseListener;
 
-    /**
-     * @brief GLFW-based window manager implementation
-     * 
-     * Provides window management using GLFW backend with support
-     * for Vulkan, OpenGL, and CPU rendering.
-     */
+    struct GlfwUserData {
+        class GlfwWindowManager* windowManager = nullptr;
+        KeyboardListener* keyboardListener = nullptr;
+        MouseListener* mouseListener = nullptr;
+    };
+
     class GlfwWindowManager : public IWindowManager {
     public:
-        /**
-         * @brief Construct GLFW window manager
-         * @param windowDetails Window configuration
-         * @param graphicsAPI Graphics API to use
-         */
-        explicit GlfwWindowManager(const WindowDetails& windowDetails, 
+        explicit GlfwWindowManager(const WindowDetails& windowDetails,
                                    GraphicsAPI graphicsAPI = GraphicsAPI::Vulkan);
-        
-        /**
-         * @brief Destructor - cleans up GLFW resources
-         */
         ~GlfwWindowManager() override;
-        
-        // Non-copyable
+
         GlfwWindowManager(const GlfwWindowManager&) = delete;
         GlfwWindowManager& operator=(const GlfwWindowManager&) = delete;
-        
-        // Movable
         GlfwWindowManager(GlfwWindowManager&&) noexcept;
         GlfwWindowManager& operator=(GlfwWindowManager&&) noexcept;
-        
-        // IWindowManager interface implementation
+
         void createWindow(const char* windowName) override;
         void process(std::function<void()>&& actions) override;
         void* getWindowInstance() override;
@@ -53,7 +39,7 @@ namespace wma {
         const std::vector<const char*> getVulkanExtensions() const override;
         KeyboardListener& getKeyboardListener() noexcept override;
         MouseListener& getMouseListener() noexcept override;
-        const bool shouldClose() const override;
+        bool shouldClose() const override;
         WindowBackend getBackendType() const override;
         GraphicsAPI getGraphicsAPI() const override;
         WmaCode destroy() override;
@@ -67,19 +53,14 @@ namespace wma {
         std::unique_ptr<GLFWMouseListener> mouseListener_;
         std::unique_ptr<GlfwUserData> userData_;
         bool windowShouldClose_;
-        
-        // Event handling;
+
         static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
         static void windowFocusCallback(GLFWwindow* window, int focused);
         static void windowIconifyCallback(GLFWwindow* window, int iconified);
-        
-        // Helper methods
         void initializeGLFW();
-        
-        // Static helper to get instance from window
         static GlfwWindowManager* getInstanceFromWindow(GLFWwindow* window);
     };
 
 } // namespace wma
 
-#endif // WMA_MANAGERS_GLFW_WINDOW_MANAGER_HPP
+#endif // WMA_BACKENDS_GLFW_WINDOW_MANAGER_HPP

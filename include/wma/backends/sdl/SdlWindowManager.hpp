@@ -1,49 +1,29 @@
-#ifndef WMA_MANAGERS_SDL_WINDOW_MANAGER_HPP
-#define WMA_MANAGERS_SDL_WINDOW_MANAGER_HPP
+#ifndef WMA_BACKENDS_SDL_WINDOW_MANAGER_HPP
+#define WMA_BACKENDS_SDL_WINDOW_MANAGER_HPP
 
 #include <memory>
 
-#include "wma/input/mouse/SDLMouseListener.hpp"
-#include "wma/input/keyboard/SDLKeyboardListener.hpp"
-#include "IWindowManager.hpp"
+#include "SDLMouseListener.hpp"
+#include "SDLKeyboardListener.hpp"
+#include "wma/managers/IWindowManager.hpp"
 
-// Forward declarations
 struct SDL_Window;
 union SDL_Event;
 struct SDL_KeyboardEvent;
 
 namespace wma {
 
-    /**
-     * @brief SDL2-based window manager implementation
-     * 
-     * Provides window management using SDL2 backend with support
-     * for Vulkan, OpenGL, and CPU rendering.
-     */
     class SdlWindowManager : public IWindowManager {
     public:
-        /**
-         * @brief Construct SDL window manager
-         * @param windowDetails Window configuration
-         * @param graphicsAPI Graphics API to use
-         */
-        explicit SdlWindowManager(const WindowDetails& windowDetails, 
+        explicit SdlWindowManager(const WindowDetails& windowDetails,
                                   GraphicsAPI graphicsAPI = GraphicsAPI::Vulkan);
-        
-        /**
-         * @brief Destructor - cleans up SDL resources
-         */
         ~SdlWindowManager() override;
-        
-        // Non-copyable
+
         SdlWindowManager(const SdlWindowManager&) = delete;
         SdlWindowManager& operator=(const SdlWindowManager&) = delete;
-        
-        // Movable
         SdlWindowManager(SdlWindowManager&&) noexcept;
         SdlWindowManager& operator=(SdlWindowManager&&) noexcept;
-        
-        // IWindowManager interface implementation
+
         void createWindow(const char* windowName) override;
         void process(std::function<void()>&& actions) override;
         void* getWindowInstance() override;
@@ -53,7 +33,7 @@ namespace wma {
         const std::vector<const char*> getVulkanExtensions() const override;
         KeyboardListener& getKeyboardListener() noexcept override;
         MouseListener& getMouseListener() noexcept override;
-        const bool shouldClose() const override;
+        bool shouldClose() const override;
         WindowBackend getBackendType() const override;
         GraphicsAPI getGraphicsAPI() const override;
         WmaCode destroy() override;
@@ -66,15 +46,12 @@ namespace wma {
         std::unique_ptr<SDLKeyboardListener> keyboardListener_;
         std::unique_ptr<SDLMouseListener> mouseListener_;
         bool windowShouldClose_;
-        
-        // Event handling
+
         void processEvents();
         void handleWindowEvent(const SDL_Event* event);
-        
-        // Helper methods
         void initializeSDL();
     };
 
 } // namespace wma
 
-#endif // WMA_MANAGERS_SDL_WINDOW_MANAGER_HPP
+#endif // WMA_BACKENDS_SDL_WINDOW_MANAGER_HPP

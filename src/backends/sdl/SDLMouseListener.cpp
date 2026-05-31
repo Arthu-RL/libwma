@@ -1,5 +1,5 @@
 #ifdef WMA_ENABLE_SDL
-#include "wma/input/mouse/SDLMouseListener.hpp"
+#include "wma/backends/sdl/SDLMouseListener.hpp"
 #include "wma/exceptions/WMAException.hpp"
 #include "wma/core/Types.hpp"
 
@@ -18,17 +18,13 @@ void SDLMouseListener::initialize(SDL_Window* window)
     if (!window) {
         throw InputException("Invalid SDL window pointer");
     }
-
     sdlWindow_ = window;
     SDL_SetWindowData(window, "MouseListener", this);
-
-    // Get initial cursor position
     i32 x, y;
     SDL_GetMouseState(&x, &y);
     currentPosition_ = WMAMousePosition(static_cast<f64>(x), static_cast<f64>(y));
     lastPosition_ = currentPosition_;
     firstMouse_ = true;
-
     updateCursorState();
 }
 
@@ -39,7 +35,6 @@ void SDLMouseListener::handleEvent(const SDL_Event& event)
     case SDL_MOUSEBUTTONUP: {
         i32 unifiedButton = convertButton(event.button.button);
         auto it = buttonActions_.find(unifiedButton);
-
         if (it != buttonActions_.end()) {
             if (event.type == SDL_MOUSEBUTTONDOWN) {
                 it->second.executePress();
@@ -49,7 +44,6 @@ void SDLMouseListener::handleEvent(const SDL_Event& event)
         }
         break;
     }
-
     case SDL_MOUSEMOTION: {
         if (firstMouse_) {
             lastPosition_ = WMAMousePosition(
@@ -58,34 +52,27 @@ void SDLMouseListener::handleEvent(const SDL_Event& event)
             );
             firstMouse_ = false;
         }
-
         f64 xpos = static_cast<f64>(event.motion.x);
         f64 ypos = static_cast<f64>(event.motion.y);
         f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
         f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
-
         currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
-
         if (moveAction_.hasMoveAction()) {
             moveAction_.executeMove(currentPosition_);
         }
-
         lastPosition_ = WMAMousePosition(xpos, ypos);
         break;
     }
-
     case SDL_MOUSEWHEEL: {
         WMAMouseScroll scroll(
             static_cast<f64>(event.wheel.x),
             static_cast<f64>(event.wheel.y)
         );
-
         if (scrollAction_.hasScrollAction()) {
             scrollAction_.executeScroll(scroll);
         }
         break;
     }
-
     default:
         break;
     }
@@ -117,5 +104,4 @@ i32 SDLMouseListener::convertButton(i32 sdlButton) const
 }
 
 } // namespace wma
-
 #endif

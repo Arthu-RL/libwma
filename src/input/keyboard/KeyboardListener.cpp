@@ -1,4 +1,4 @@
-#include "wma/input/KeyboardListener.hpp"
+#include "wma/input/keyboard/KeyboardListener.hpp"
 
 namespace wma {
 

@@ -1,56 +1,34 @@
 #ifndef WMA_H
 #define WMA_H
 
-/**
- * @file wma.hpp
- * @brief Main header for WMA cross-platform window management Abstraction library
- * 
- * WMA provides a unified interface for window management across different
- * backends (GLFW/SDL2) and graphics APIs (Vulkan/OpenGL).
- * 
- * @version 1.0.0
- * @author WMA Library Team
- */
-
 #include <ink/ink_base.hpp>
 #include <ink/InkAssert.h>
 
-// Core components
 #include "core/Types.hpp"
 #include "core/WindowDetails.hpp"
 #include "core/WindowFlags.hpp"
-
-// Exception handling
 #include "exceptions/WMAException.hpp"
-
-// Input handling
 #include "input/keyboard/Keys.h"
 #include "input/keyboard/KeyAction.hpp"
 #include "input/keyboard/KeyboardListener.hpp"
-
-// Window management
 #include "managers/IWindowManager.hpp"
 
-// Conditional backend includes
 #ifdef WMA_ENABLE_GLFW
-    #include "managers/GlfwWindowManager.hpp"
+    #include "backends/glfw/GlfwWindowManager.hpp"
 #endif
 
 #ifdef WMA_ENABLE_SDL
-    #include "managers/SdlWindowManager.hpp"
+    #include "backends/sdl/SdlWindowManager.hpp"
 #endif
 
 #ifdef WMA_ENABLE_WAYLAND
-#include "managers/WaylandWindowManager.hpp"
+    #include "backends/wayland/WaylandWindowManager.hpp"
 #endif
 
 #ifdef WMA_ENABLE_X11
-#include "managers/X11WindowManager.hpp"
+    #include "backends/x11/X11WindowManager.hpp"
 #endif
 
-/*====================
- * WMA VERSION INFO
- *====================*/
 #define WMA_MAJOR_VERSION 1
 #define WMA_MINOR_VERSION 0
 #define WMA_PATCH_VERSION 0
@@ -59,34 +37,24 @@
 
 namespace wma {
 
-    /**
-     * @brief Factory function to create a window manager
-     * @param backend The windowing backend to use
-     * @param windowDetails Window configuration
-     * @param graphicsAPI Graphics API to use
-     * @return Unique pointer to window manager instance
-     */
     inline std::unique_ptr<IWindowManager> createWindowManager(
         WindowBackend backend,
         const WindowDetails& windowDetails,
-        GraphicsAPI graphicsAPI
-        ) {
+        GraphicsAPI graphicsAPI)
+    {
         switch (backend) {
 #ifdef WMA_ENABLE_GLFW
         case WindowBackend::GLFW:
             return std::make_unique<GlfwWindowManager>(windowDetails, graphicsAPI);
 #endif
-
 #ifdef WMA_ENABLE_SDL
         case WindowBackend::SDL2:
             return std::make_unique<SdlWindowManager>(windowDetails, graphicsAPI);
 #endif
-
 #ifdef WMA_ENABLE_WAYLAND
         case WindowBackend::WAYLAND:
             return std::make_unique<WaylandWindowManager>(windowDetails, graphicsAPI);
 #endif
-
 #ifdef WMA_ENABLE_X11
         case WindowBackend::X11:
             return std::make_unique<X11WindowManager>(windowDetails, graphicsAPI);
@@ -96,18 +64,13 @@ namespace wma {
         }
     }
 
-    /**
-     * @brief Get default window backend based on platform and compilation
-     * @return The recommended backend for current platform
-     */
     inline WindowBackend getDefaultBackend() {
-        // Priority order: GLFW first (generally more stable for graphics development)
-#ifdef WMA_ENABLE_GLFW
-        return WindowBackend::GLFW;
+#ifdef WMA_ENABLE_WAYLAND
+        return WindowBackend::WAYLAND;
 #elif defined(WMA_ENABLE_SDL)
         return WindowBackend::SDL2;
-#elif WMA_ENABLE_WAYLAND
-        return WindowBackend::WAYLAND;
+#elif defined(WMA_ENABLE_GLFW)
+        return WindowBackend::GLFW;
 #elif defined(WMA_ENABLE_X11)
         return WindowBackend::X11;
 #else
@@ -115,41 +78,24 @@ namespace wma {
 #endif
     }
 
-    /**
-     * @brief Check if a specific backend is available
-     * @param backend The backend to check
-     * @return true if backend is available
-     */
     inline bool isBackendAvailable(WindowBackend backend) {
         switch (backend) {
 #ifdef WMA_ENABLE_GLFW
-        case WindowBackend::GLFW:
-            return true;
+        case WindowBackend::GLFW: return true;
 #endif
-
 #ifdef WMA_ENABLE_SDL
-        case WindowBackend::SDL2:
-            return true;
+        case WindowBackend::SDL2: return true;
 #endif
-
 #ifdef WMA_ENABLE_WAYLAND
-        case WindowBackend::WAYLAND:
-            return true;
+        case WindowBackend::WAYLAND: return true;
 #endif
-
 #ifdef WMA_ENABLE_X11
-        case WindowBackend::X11:
-            return true;
+        case WindowBackend::X11: return true;
 #endif
-        default:
-            return false;
+        default: return false;
         }
     }
 
-    /**
-     * @brief Get library information string
-     * @return String containing version and build info
-     */
     inline const char* getLibraryInfo() {
         static const char* info =
             "WMA Window Management & Input Abstraction Library v" WMA_VERSION_STRING_FULL "\n"
@@ -161,17 +107,13 @@ namespace wma {
             "SDL2 "
 #endif
 #ifdef WMA_ENABLE_WAYLAND
-        "WAYLAND "
+            "Wayland "
 #endif
 #ifdef WMA_ENABLE_X11
             "X11 "
 #endif
-
-            "\nGraphics APIs: "
-            "Vulkan "
-            "OpenGL "
+            "\nGraphics APIs: Vulkan OpenGL"
             "\nBuilt with C++17";
-
         return info;
     }
 

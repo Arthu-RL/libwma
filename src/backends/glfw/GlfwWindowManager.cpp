@@ -1,4 +1,4 @@
-#include "wma/managers/GlfwWindowManager.hpp"
+#include "wma/backends/glfw/GlfwWindowManager.hpp"
 #include "wma/exceptions/WMAException.hpp"
 #include "wma/core/FrameTimer.hpp"
 
@@ -53,12 +53,9 @@ namespace wma {
 
     GlfwWindowManager& GlfwWindowManager::operator=(GlfwWindowManager&& other) noexcept {
         if (this != &other) {
-            // Clean up current resources
             if (window_) {
                 glfwDestroyWindow(window_);
             }
-
-            // Move data
             window_ = other.window_;
             windowDetails_ = std::move(other.windowDetails_);
             windowFlags_ = std::move(other.windowFlags_);
@@ -67,15 +64,11 @@ namespace wma {
             mouseListener_ = std::move(other.mouseListener_);
             userData_ = std::move(other.userData_);
             windowShouldClose_ = other.windowShouldClose_;
-
             other.window_ = nullptr;
-
             if (userData_) {
-
                 userData_->windowManager = this;
                 userData_->keyboardListener = keyboardListener_.get();
                 userData_->mouseListener = mouseListener_.get();
-
                 if (window_) {
                     glfwSetWindowUserPointer(window_, userData_.get());
                 }
@@ -85,17 +78,14 @@ namespace wma {
     }
 
     void GlfwWindowManager::createWindow(const char* windowName) {
-        // Set window hints
         glfwWindowHint(GLFW_RESIZABLE, windowDetails_.resizable ? GLFW_TRUE : GLFW_FALSE);
-        
-        // Set graphics API specific hints
+
         switch (graphicsAPI_) {
 #ifdef WMA_ENABLE_VULKAN
             case GraphicsAPI::Vulkan:
                 glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
                 break;
 #endif
-
 #ifdef WMA_ENABLE_OPENGL
             case GraphicsAPI::OpenGL:
                 glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
@@ -104,18 +94,15 @@ namespace wma {
                 glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
                 break;
 #endif
-
             case GraphicsAPI::CPU:
                 glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
                 break;
-                
             default:
                 throw GraphicsException("Unsupported graphics API for GLFW");
         }
 
         window_ = glfwCreateWindow(
-            windowDetails_.width,
-            windowDetails_.height,
+            windowDetails_.width, windowDetails_.height,
             windowName,
             windowDetails_.fullscreen ? glfwGetPrimaryMonitor() : nullptr,
             nullptr
@@ -123,34 +110,26 @@ namespace wma {
 
         if (!window_) {
             glfwTerminate();
-            throw WindowException("Failed to create GLFW window: ");
+            throw WindowException("Failed to create GLFW window");
         }
 
-        // Set window user pointer to this instance
         glfwSetWindowUserPointer(window_, userData_.get());
-
-        // Set callbacks
         glfwSetFramebufferSizeCallback(window_, framebufferSizeCallback);
         glfwSetWindowFocusCallback(window_, windowFocusCallback);
         glfwSetWindowIconifyCallback(window_, windowIconifyCallback);
 
-        // Initialize graphics context
 #ifdef WMA_ENABLE_OPENGL
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
             glfwMakeContextCurrent(window_);
-            
             if (!GLADloadproc((GLADloadproc)glfwGetProcAddress)) {
                 glfwDestroyWindow(window_);
                 glfwTerminate();
                 throw GraphicsException("Failed to load OpenGL functions");
             }
-
-            // Set VSync
             glfwSwapInterval(windowDetails_.vsync ? 1 : 0);
         }
 #endif
 
-        // Initialize input listeners
         keyboardListener_->initialize(window_);
         mouseListener_->initialize(window_);
 
@@ -163,10 +142,7 @@ namespace wma {
 
         while (!windowShouldClose_ && !glfwWindowShouldClose(window_)) {
             glfwPollEvents();
-
             timer.updateDeltaTime();
-            
-            // Execute user actions
             actions();
 
             if (graphicsAPI_ == GraphicsAPI::OpenGL) {
@@ -178,118 +154,77 @@ namespace wma {
         }
     }
 
-    void* GlfwWindowManager::getWindowInstance() {
-        return window_;
-    }
-
-    WindowFlags* GlfwWindowManager::getWindowFlags() noexcept {
-        return &windowFlags_;
-    }
-
-    const WindowDetails* GlfwWindowManager::getWindowDetails() noexcept {
-        return &windowDetails_;
-    }
+    void* GlfwWindowManager::getWindowInstance() { return window_; }
+    WindowFlags* GlfwWindowManager::getWindowFlags() noexcept { return &windowFlags_; }
+    const WindowDetails* GlfwWindowManager::getWindowDetails() noexcept { return &windowDetails_; }
 
     const std::vector<const char*> GlfwWindowManager::getVulkanExtensions() const {
 #ifdef WMA_ENABLE_VULKAN
         u32 extensionCount = 0;
         const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
-        
         if (!extensions) {
             throw GraphicsException("Failed to get Vulkan extensions from GLFW");
         }
-
         return std::vector<const char*>(extensions, extensions + extensionCount);
 #else
         throw GraphicsException("Vulkan support not compiled in");
 #endif
     }
 
-    KeyboardListener& GlfwWindowManager::getKeyboardListener() noexcept {
-        return *keyboardListener_;
-    }
+    KeyboardListener& GlfwWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
+    MouseListener& GlfwWindowManager::getMouseListener() noexcept { return *mouseListener_; }
 
-    MouseListener& GlfwWindowManager::getMouseListener() noexcept {
-        return *mouseListener_;
-    }
-
-    const bool GlfwWindowManager::shouldClose() const {
+    bool GlfwWindowManager::shouldClose() const {
         return windowShouldClose_ || glfwWindowShouldClose(window_);
     }
 
-    WindowBackend GlfwWindowManager::getBackendType() const {
-        return WindowBackend::GLFW;
-    }
+    WindowBackend GlfwWindowManager::getBackendType() const { return WindowBackend::GLFW; }
+    GraphicsAPI GlfwWindowManager::getGraphicsAPI() const { return graphicsAPI_; }
 
-    GraphicsAPI GlfwWindowManager::getGraphicsAPI() const {
-        return graphicsAPI_;
-    }
-
-    void GlfwWindowManager::framebufferSizeCallback(GLFWwindow* window, int width, int height) {
-        auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
-        if (userData && userData->windowManager) {
-            userData->windowManager->windowDetails_.width = width;
-            userData->windowManager->windowDetails_.height = height;
-            userData->windowManager->windowFlags_.resized = true;
+    WmaCode GlfwWindowManager::destroy() {
+        windowShouldClose_ = true;
+        if (window_) {
+            glfwDestroyWindow(window_);
+            window_ = nullptr;
         }
-    }
-
-    void GlfwWindowManager::windowFocusCallback(GLFWwindow* window, int focused) {
-        auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
-        if (userData && userData->windowManager) {
-            userData->windowManager->windowFlags_.focused = focused == GLFW_TRUE;
-        }
-    }
-
-    void GlfwWindowManager::windowIconifyCallback(GLFWwindow* window, int iconified) {
-        auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
-        if (userData && userData->windowManager) {
-            userData->windowManager->windowFlags_.minimized = iconified == GLFW_TRUE;
-        }
+        glfwTerminate();
+        return WmaCode::OK;
     }
 
     void GlfwWindowManager::initializeGLFW() {
         if (!glfwInit()) {
             throw WMAException("Failed to initialize GLFW");
         }
+    }
 
-        // Check for Vulkan support if needed
-#ifdef WMA_ENABLE_VULKAN
-        if (graphicsAPI_ == GraphicsAPI::Vulkan) {
-            if (!glfwVulkanSupported()) {
-                glfwTerminate();
-                throw GraphicsException("Vulkan is not supported by GLFW");
-            }
+    void GlfwWindowManager::framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+        auto* instance = getInstanceFromWindow(window);
+        if (instance) {
+            instance->windowDetails_.width = width;
+            instance->windowDetails_.height = height;
+            instance->windowFlags_.resized = true;
         }
-#endif
-        mouseListener_->setSensitivity(1.0); // Default
+    }
+
+    void GlfwWindowManager::windowFocusCallback(GLFWwindow* window, int focused) {
+        auto* instance = getInstanceFromWindow(window);
+        if (instance) {
+            instance->windowFlags_.focused = (focused == GLFW_TRUE);
+        }
+    }
+
+    void GlfwWindowManager::windowIconifyCallback(GLFWwindow* window, int iconified) {
+        auto* instance = getInstanceFromWindow(window);
+        if (instance) {
+            instance->windowFlags_.minimized = (iconified == GLFW_TRUE);
+        }
     }
 
     GlfwWindowManager* GlfwWindowManager::getInstanceFromWindow(GLFWwindow* window) {
+        if (!window) return nullptr;
         auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
         return userData ? userData->windowManager : nullptr;
     }
 
-    WmaCode GlfwWindowManager::destroy()
-    {
-        windowShouldClose_ = true;
-
-        if (window_ != nullptr) {
-            glfwSetMouseButtonCallback(window_, nullptr);
-            glfwSetCursorPosCallback(window_, nullptr);
-            glfwSetScrollCallback(window_, nullptr);
-            glfwSetKeyCallback(window_, nullptr);
-            glfwSetWindowUserPointer(window_, nullptr);
-
-            glfwDestroyWindow(window_);
-            window_ = nullptr;
-        }
-
-        glfwTerminate();
-
-        return WmaCode::OK;
-    }
-
 } // namespace wma
-
 #endif // WMA_ENABLE_GLFW

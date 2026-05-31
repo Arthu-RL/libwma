@@ -31,7 +31,6 @@ public:
     MouseListener();
     virtual ~MouseListener();
 
-    // Action management
     void addButtonAction(i32 button, MouseAction action);
     void removeButtonAction(i32 button);
     void setMoveAction(MouseAction action);
@@ -39,21 +38,17 @@ public:
     void clearAllActions();
     bool hasButtonAction(i32 button) const;
 
-    // State queries
     WMAMousePosition getCurrentPosition() const;
     void setCursorEnabled(bool enabled);
     bool isCursorEnabled() const;
     void setSensitivity(f64 sensitivity);
     f64 getSensitivity() const;
 
-    // Event processing
     void processPendingEvents(const PendingEvent& event);
 
 protected:
-    // Platform-specific methods to be overridden
     virtual void updateCursorState() = 0;
 
-    // Core state
     std::unordered_map<i32, MouseAction> buttonActions_;
     MouseAction moveAction_;
     MouseAction scrollAction_;

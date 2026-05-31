@@ -7,102 +7,76 @@ MouseListener::MouseListener()
     , lastPosition_{}
 {
     moveAction_ = MouseAction(
-        [](const WMAMousePosition& pos) {
-            // handle move
-        }
+        [](const WMAMousePosition&) {}
     );
     scrollAction_ = MouseAction(
-        [](const WMAMouseScroll& scroll) {
-            // handle scroll
-        }
+        [](const WMAMouseScroll&) {}
     );
 }
 
 MouseListener::~MouseListener() = default;
 
-void MouseListener::addButtonAction(i32 button, MouseAction action)
-{
+void MouseListener::addButtonAction(i32 button, MouseAction action) {
     buttonActions_[button] = std::move(action);
 }
 
-void MouseListener::removeButtonAction(i32 button)
-{
+void MouseListener::removeButtonAction(i32 button) {
     buttonActions_.erase(button);
 }
 
-void MouseListener::setMoveAction(MouseAction action)
-{
+void MouseListener::setMoveAction(MouseAction action) {
     moveAction_ = std::move(action);
 }
 
-void MouseListener::setScrollAction(MouseAction action)
-{
+void MouseListener::setScrollAction(MouseAction action) {
     scrollAction_ = std::move(action);
 }
 
-void MouseListener::clearAllActions()
-{
+void MouseListener::clearAllActions() {
     buttonActions_.clear();
-    moveAction_ = MouseAction(
-        [](const WMAMousePosition& pos) {
-            // handle move
-        }
-    );
-    scrollAction_ = MouseAction(
-        [](const WMAMouseScroll& scroll) {
-            // handle scroll
-        }
-    );
+    moveAction_ = MouseAction([](const WMAMousePosition&) {});
+    scrollAction_ = MouseAction([](const WMAMouseScroll&) {});
 }
 
-bool MouseListener::hasButtonAction(i32 button) const
-{
+bool MouseListener::hasButtonAction(i32 button) const {
     return buttonActions_.find(button) != buttonActions_.end();
 }
 
-WMAMousePosition MouseListener::getCurrentPosition() const
-{
+WMAMousePosition MouseListener::getCurrentPosition() const {
     return currentPosition_;
 }
 
-void MouseListener::setCursorEnabled(bool enabled)
-{
+void MouseListener::setCursorEnabled(bool enabled) {
     if (cursorEnabled_ != enabled) {
         cursorEnabled_ = enabled;
         updateCursorState();
     }
 }
 
-bool MouseListener::isCursorEnabled() const
-{
+bool MouseListener::isCursorEnabled() const {
     return cursorEnabled_;
 }
 
-void MouseListener::setSensitivity(f64 sensitivity)
-{
+void MouseListener::setSensitivity(f64 sensitivity) {
     sensitivity_ = sensitivity;
 }
 
-f64 MouseListener::getSensitivity() const
-{
+f64 MouseListener::getSensitivity() const {
     return sensitivity_;
 }
 
-void MouseListener::processPendingEvents(const PendingEvent& event)
-{
+void MouseListener::processPendingEvents(const PendingEvent& event) {
     switch (event.type) {
     case PendingEvent::WMAMove:
         if (moveAction_.hasMoveAction()) {
             moveAction_.executeMove(event.position);
         }
         break;
-
     case PendingEvent::WMAScroll:
         if (scrollAction_.hasScrollAction()) {
             scrollAction_.executeScroll(event.scroll);
         }
         break;
-
     case PendingEvent::WMAButtonPress: {
         auto it = buttonActions_.find(event.button);
         if (it != buttonActions_.end()) {
@@ -110,7 +84,6 @@ void MouseListener::processPendingEvents(const PendingEvent& event)
         }
         break;
     }
-
     case PendingEvent::WMAButtonRelease: {
         auto it = buttonActions_.find(event.button);
         if (it != buttonActions_.end()) {
@@ -118,7 +91,6 @@ void MouseListener::processPendingEvents(const PendingEvent& event)
         }
         break;
     }
-
     case PendingEvent::WMANone:
     default:
         break;

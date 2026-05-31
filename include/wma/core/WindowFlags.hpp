@@ -10,7 +10,7 @@ namespace wma {
      */
     struct WindowFlags {
         bool resized;
-        bool minimized ;
+        bool minimized;
         bool focused;
         f64 deltaTime;
         f64 fps;

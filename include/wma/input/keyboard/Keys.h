@@ -513,6 +513,134 @@ inline Key mapX11Key(KeySym x11Key) {
 }
 #endif
 
+#ifdef WMA_ENABLE_WAYLAND
+// Note: evdev codes map physical key positions.
+inline Key mapWaylandKey(u32 xkbKeycode) {
+    // The handler adds 8 to get the xkbKeycode.
+    // so subtract 8 to get back to the standard Linux evdev keycode.
+    u32 evdevKey = xkbKeycode - 8;
+
+    switch (evdevKey) {
+    // Letters (Physical QWERTY positions)
+    case 30: return Key::KEY_A;
+    case 48: return Key::KEY_B;
+    case 46: return Key::KEY_C;
+    case 32: return Key::KEY_D;
+    case 18: return Key::KEY_E;
+    case 33: return Key::KEY_F;
+    case 34: return Key::KEY_G;
+    case 35: return Key::KEY_H;
+    case 23: return Key::KEY_I;
+    case 36: return Key::KEY_J;
+    case 37: return Key::KEY_K;
+    case 38: return Key::KEY_L;
+    case 50: return Key::KEY_M;
+    case 49: return Key::KEY_N;
+    case 24: return Key::KEY_O;
+    case 25: return Key::KEY_P;
+    case 16: return Key::KEY_Q;
+    case 19: return Key::KEY_R;
+    case 31: return Key::KEY_S;
+    case 20: return Key::KEY_T;
+    case 22: return Key::KEY_U;
+    case 47: return Key::KEY_V;
+    case 17: return Key::KEY_W;
+    case 45: return Key::KEY_X;
+    case 21: return Key::KEY_Y;
+    case 44: return Key::KEY_Z;
+
+    // Numbers
+    case 11: return Key::KEY_0;
+    case 2:  return Key::KEY_1;
+    case 3:  return Key::KEY_2;
+    case 4:  return Key::KEY_3;
+    case 5:  return Key::KEY_4;
+    case 6:  return Key::KEY_5;
+    case 7:  return Key::KEY_6;
+    case 8:  return Key::KEY_7;
+    case 9:  return Key::KEY_8;
+    case 10: return Key::KEY_9;
+
+    // Function keys
+    case 59: return Key::KEY_F1;
+    case 60: return Key::KEY_F2;
+    case 61: return Key::KEY_F3;
+    case 62: return Key::KEY_F4;
+    case 63: return Key::KEY_F5;
+    case 64: return Key::KEY_F6;
+    case 65: return Key::KEY_F7;
+    case 66: return Key::KEY_F8;
+    case 67: return Key::KEY_F9;
+    case 68: return Key::KEY_F10;
+    case 87: return Key::KEY_F11;
+    case 88: return Key::KEY_F12;
+
+    // Controls
+    case 1:   return Key::KEY_ESCAPE;
+    case 28:  return Key::KEY_ENTER; // Main Enter key
+    case 15:  return Key::KEY_TAB;
+    case 14:  return Key::KEY_BACKSPACE;
+    case 110: return Key::KEY_INSERT;
+    case 111: return Key::KEY_DELETE;
+    case 106: return Key::KEY_RIGHT;
+    case 105: return Key::KEY_LEFT;
+    case 108: return Key::KEY_DOWN;
+    case 103: return Key::KEY_UP;
+    case 104: return Key::KEY_PAGE_UP;
+    case 109: return Key::KEY_PAGE_DOWN;
+    case 102: return Key::KEY_HOME;
+    case 107: return Key::KEY_END;
+
+    // Modifiers
+    case 42:  return Key::KEY_LEFT_SHIFT;
+    case 54:  return Key::KEY_RIGHT_SHIFT;
+    case 29:  return Key::KEY_LEFT_CTRL;
+    case 97:  return Key::KEY_RIGHT_CTRL;
+    case 56:  return Key::KEY_LEFT_ALT;
+    case 100: return Key::KEY_RIGHT_ALT;
+    case 125: return Key::KEY_LEFT_SUPER;
+    case 126: return Key::KEY_RIGHT_SUPER;
+    case 58:  return Key::KEY_CAPS_LOCK;
+    case 70:  return Key::KEY_SCROLL_LOCK;
+    case 69:  return Key::KEY_NUM_LOCK;
+
+    // Symbols
+    case 57: return Key::KEY_SPACE;
+    case 12: return Key::KEY_MINUS;
+    case 13: return Key::KEY_EQUAL;
+    case 26: return Key::KEY_LEFT_BRACKET;
+    case 27: return Key::KEY_RIGHT_BRACKET;
+    case 43: return Key::KEY_BACKSLASH;
+    case 39: return Key::KEY_SEMICOLON;
+    case 40: return Key::KEY_APOSTROPHE;
+    case 41: return Key::KEY_GRAVE;
+    case 51: return Key::KEY_COMMA;
+    case 52: return Key::KEY_PERIOD;
+    case 53: return Key::KEY_SLASH;
+
+    // Keypad
+    case 82: return Key::KEY_KP_0;
+    case 79: return Key::KEY_KP_1;
+    case 80: return Key::KEY_KP_2;
+    case 81: return Key::KEY_KP_3;
+    case 75: return Key::KEY_KP_4;
+    case 76: return Key::KEY_KP_5;
+    case 77: return Key::KEY_KP_6;
+    case 71: return Key::KEY_KP_7;
+    case 72: return Key::KEY_KP_8;
+    case 73: return Key::KEY_KP_9;
+    case 83: return Key::KEY_KP_DECIMAL;
+    case 98: return Key::KEY_KP_DIVIDE;
+    case 55: return Key::KEY_KP_MULTIPLY;
+    case 74: return Key::KEY_KP_SUBTRACT;
+    case 78: return Key::KEY_KP_ADD;
+    case 96: return Key::KEY_KP_ENTER; // Keypad Enter key
+
+    default: return Key::KEY_UNKNOWN;
+    }
+}
+#endif
+
 } // namespace wma
 
 #endif // KEYS_H

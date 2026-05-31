@@ -1,33 +1,29 @@
 #include <ink/Inkogger.h>
 #include <memory>
 
-#include "../../include/wma/wma.hpp"
+#include "wma/wma.hpp"
 
 int main() {
     try {
-        // Configure window
         wma::WindowDetails windowConfig(1280, 720, true, 0);
 
-        // Create window manager (uses default backend)
+        INK_LOG << "Starting Window...";
+
         auto windowManager = wma::createWindowManager(
             wma::getDefaultBackend(),
             windowConfig,
             wma::GraphicsAPI::CPU
         );
 
-        // Create the window
         windowManager->createWindow("wma Example - Basic Window");
 
-        // Setup input handling
         auto& keyboard = windowManager->getKeyboardListener();
-        
-        // Add escape key to close window
+
         keyboard.addKeyAction(wma::Key::KEY_ESCAPE, wma::KeyAction {
             [&]() { windowManager->destroy(); INK_LOG << "Escape pressed - closing window\n"; },
             nullptr
         });
 
-        // Add some debug keys
         keyboard.addKeyAction(wma::Key::KEY_SPACE, wma::KeyAction {
             []() { INK_LOG << "Space pressed\n"; },
             []() { INK_LOG << "Space released\n"; }
@@ -48,25 +44,10 @@ int main() {
             INK_LOG << "scroll offset " << offset.xOffset << " " << offset.yOffset;
         }));
 
-
-        // Variable to track state
-        bool running = true;
         unsigned long long frameCount = 0;
 
-        // Main loop
         windowManager->process([&]() {
-            // Your rendering/update code goes here
             frameCount++;
-
-            // Print FPS
-            // if (frameCount % 1000 == 0) {
-            //     auto* flags = windowManager->getWindowFlags();
-            //     INK_LOG  << " | FPS: " << flags->fps
-            //              << " | COUNTER: " << frameCount
-            //              << " | Delta: " << flags->deltaTime << "ms\n";
-            // }
-
-            // Handle window resize
             auto* flags = windowManager->getWindowFlags();
             if (flags->resized) {
                 INK_LOG << "Window resized!\n";
