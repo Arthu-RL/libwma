@@ -55,16 +55,13 @@ void WaylandKeyboardListener::handleLeave(u32, wl_surface*)
 
 void WaylandKeyboardListener::handleKey(u32, u32, u32 key, u32 state)
 {
-    u32 xkbKeycode = key + 8;
-    Key mappedKey = mapWaylandKey(xkbKeycode);
+    const u32 xkbKeycode = key + 8;
+    const Key mappedKey = mapWaylandKey(xkbKeycode);
 
-    auto it = keyActions_.find(static_cast<i32>(mappedKey));
-    if (it != keyActions_.end()) {
-        if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-            it->second.executePress();
-        } else if (state == WL_KEYBOARD_KEY_STATE_RELEASED) {
-            it->second.executeRelease();
-        }
+    if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+        dispatchKeyPress(mappedKey);
+    } else if (state == WL_KEYBOARD_KEY_STATE_RELEASED) {
+        dispatchKeyRelease(mappedKey);
     }
 }
 

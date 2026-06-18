@@ -19,10 +19,38 @@ int main() {
 
         auto& keyboard = windowManager->getKeyboardListener();
 
+        const auto gameplay = keyboard.createContext();
+        const auto menu = keyboard.createContext();
+
         keyboard.addKeyAction(wma::Key::KEY_ESCAPE, wma::KeyAction {
             [&]() { windowManager->destroy(); INK_LOG << "Escape pressed - closing window\n"; },
             nullptr
         });
+
+        keyboard.addKeyAction(wma::Key::KEY_D, wma::KeyAction {
+            []() { INK_LOG << "D pressed - gameplay move right\n"; },
+            nullptr
+        }, gameplay);
+
+        keyboard.addKeyAction(wma::Key::KEY_D, wma::KeyAction {
+            []() { INK_LOG << "D pressed - menu select\n"; },
+            nullptr
+        }, menu);
+
+        keyboard.addKeyAction(wma::Key::KEY_TAB, wma::KeyAction {
+            [&]() {
+                if (keyboard.getActiveContext() == gameplay) {
+                    keyboard.setActiveContext(menu);
+                    INK_LOG << "Switched to menu context\n";
+                } else {
+                    keyboard.setActiveContext(gameplay);
+                    INK_LOG << "Switched to gameplay context\n";
+                }
+            },
+            nullptr
+        });
+
+        keyboard.setActiveContext(gameplay);
 
         keyboard.addKeyAction(wma::Key::KEY_SPACE, wma::KeyAction {
             []() { INK_LOG << "Space pressed\n"; },

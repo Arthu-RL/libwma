@@ -36,14 +36,11 @@ void GLFWKeyboardListener::initialize(GLFWwindow* window)
 
 void GLFWKeyboardListener::handleKeyEvent(i32 key, i32 action)
 {
-    Key mappedKey = mapGLFWKey(key);
-    auto it = keyActions_.find(static_cast<i32>(mappedKey));
-    if (it != keyActions_.end()) {
-        if (action == GLFW_PRESS) {
-            it->second.executePress();
-        } else if (action == GLFW_RELEASE) {
-            it->second.executeRelease();
-        }
+    const Key mappedKey = mapGLFWKey(key);
+    if (action == GLFW_PRESS) {
+        dispatchKeyPress(mappedKey);
+    } else if (action == GLFW_RELEASE) {
+        dispatchKeyRelease(mappedKey);
     }
 }
 
@@ -60,7 +57,7 @@ GLFWKeyboardListener* GLFWKeyboardListener::getInstanceFromWindow(GLFWwindow* wi
     if (!window) return nullptr;
     auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
     if (!userData || !userData->keyboardListener) return nullptr;
-    return dynamic_cast<GLFWKeyboardListener*>(userData->keyboardListener);
+    return static_cast<GLFWKeyboardListener*>(userData->keyboardListener);
 }
 
 } // namespace wma

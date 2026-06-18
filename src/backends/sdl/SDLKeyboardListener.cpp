@@ -3,7 +3,7 @@
 #include "wma/input/keyboard/Keys.h"
 #include "wma/exceptions/WMAException.hpp"
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 namespace wma {
 
@@ -24,14 +24,11 @@ void SDLKeyboardListener::initialize(SDL_Window* window)
 
 void SDLKeyboardListener::handleKeyEvent(const SDL_KeyboardEvent& keyEvent)
 {
-    Key mappedKey = mapSDLKey(keyEvent.keysym.sym);
-    auto it = keyActions_.find(static_cast<i32>(mappedKey));
-    if (it != keyActions_.end()) {
-        if (keyEvent.type == SDL_KEYDOWN) {
-            it->second.executePress();
-        } else if (keyEvent.type == SDL_KEYUP) {
-            it->second.executeRelease();
-        }
+    const Key mappedKey = mapSDLKey(keyEvent.key);
+    if (keyEvent.type == SDL_EVENT_KEY_DOWN) {
+        dispatchKeyPress(mappedKey);
+    } else if (keyEvent.type == SDL_EVENT_KEY_UP) {
+        dispatchKeyRelease(mappedKey);
     }
 }
 

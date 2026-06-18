@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2.3)
+cmake_minimum_required(VERSION 4.3.3)
 
 project(wma
     VERSION 1.0.0
@@ -14,7 +14,7 @@ include(CMakePackageConfigHelpers)
 # =================================================================
 option(BUILD_SHARED_LIBS  "Build shared library"                  OFF)
 option(WMA_ENABLE_GLFW    "Enable GLFW backend"                   OFF)
-option(WMA_ENABLE_SDL     "Enable SDL2 backend"                   ON)
+option(WMA_ENABLE_SDL     "Enable SDL3 backend"                   ON)
 option(WMA_ENABLE_X11     "Enable X11 backend"                    ON)
 option(WMA_ENABLE_WAYLAND "Enable Wayland backend"                ON)
 option(WMA_BUILD_EXAMPLES "Build example applications"            ON)
@@ -31,7 +31,7 @@ endif()
 add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -61,8 +61,10 @@ target_include_directories(${PROJECT_NAME}
 target_sources(${PROJECT_NAME}
     PRIVATE
         src/exceptions/WMAException.cpp
+        src/input/InputCallback.cpp
         src/input/keyboard/KeyboardListener.cpp
         src/input/mouse/MouseListener.cpp
+        src/input/mouse/MouseInputCallback.cpp
 
     PUBLIC
         FILE_SET public_headers
@@ -77,11 +79,17 @@ target_sources(${PROJECT_NAME}
             include/wma/core/WindowFlags.hpp
             include/wma/core/FrameTimer.hpp
             include/wma/exceptions/WMAException.hpp
+            include/wma/input/InputTypes.hpp
+            include/wma/input/InputCallback.hpp
+            include/wma/input/InputBindingTable.hpp
+            include/wma/input/InputContextStack.hpp
             include/wma/input/keyboard/KeyboardListener.hpp
             include/wma/input/keyboard/KeyAction.hpp
             include/wma/input/keyboard/Keys.h
             include/wma/input/mouse/MouseListener.hpp
             include/wma/input/mouse/MouseAction.hpp
+            include/wma/input/mouse/MouseTypes.hpp
+            include/wma/input/mouse/MouseInputCallback.hpp
 )
 
 # =================================================================
@@ -118,13 +126,13 @@ if(WMA_ENABLE_GLFW)
 endif()
 
 # =================================================================
-# SDL2 backend
+# SDL3 backend
 # =================================================================
 if(WMA_ENABLE_SDL)
-    find_package(SDL2 REQUIRED)
+    find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_SDL)
-    target_link_libraries(${PROJECT_NAME} PUBLIC SDL2)
+    target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3)
 
     target_sources(${PROJECT_NAME}
         PRIVATE

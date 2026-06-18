@@ -27,7 +27,7 @@ namespace wma {
         void createWindow(const char* windowName) override;
         void process(std::function<void()>&& actions) override;
         void* getWindowInstance() override;
-        u32 getSDLWindowFlags() const;
+        u64 getSDLWindowFlags() const;
         WindowFlags* getWindowFlags() noexcept override;
         const WindowDetails* getWindowDetails() noexcept override;
         const std::vector<const char*> getVulkanExtensions() const override;

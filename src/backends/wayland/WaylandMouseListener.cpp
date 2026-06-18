@@ -73,42 +73,32 @@ void WaylandMouseListener::handleMotion(u32, wl_fixed_t x, wl_fixed_t y)
     f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
     f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
     currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
-
-    if (moveAction_.hasMoveAction()) {
-        moveAction_.executeMove(currentPosition_);
-    }
-
+    dispatchMove(currentPosition_);
     lastPosition_ = WMAMousePosition(xpos, ypos);
 }
 
 void WaylandMouseListener::handleButton(u32, u32,
                                         u32 button, u32 state)
 {
-    i32 unifiedButton = convertButton(button);
-    auto it = buttonActions_.find(unifiedButton);
-
-    if (it != buttonActions_.end()) {
-        if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
-            it->second.executePress();
-        } else if (state == WL_POINTER_BUTTON_STATE_RELEASED) {
-            it->second.executeRelease();
-        }
+    const i32 unifiedButton = convertButton(button);
+    if (state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        dispatchButtonPress(unifiedButton);
+    } else if (state == WL_POINTER_BUTTON_STATE_RELEASED) {
+        dispatchButtonRelease(unifiedButton);
     }
 }
 
 void WaylandMouseListener::handleAxis(u32, u32 axis, wl_fixed_t value)
 {
-    f64 scrollValue = wl_fixed_to_double(value);
+    const f64 scrollValue = wl_fixed_to_double(value);
+    WMAMouseScroll scroll;
 
-    if (scrollAction_.hasScrollAction()) {
-        WMAMouseScroll scroll;
-        if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-            scroll.yOffset = scrollValue > 0 ? -1.0 : 1.0;
-        } else if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
-            scroll.xOffset = scrollValue > 0 ? 1.0 : -1.0;
-        }
-        scrollAction_.executeScroll(scroll);
+    if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+        scroll.yOffset = scrollValue > 0 ? -1.0 : 1.0;
+    } else if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
+        scroll.xOffset = scrollValue > 0 ? 1.0 : -1.0;
     }
+    dispatchScroll(scroll);
 }
 
 void WaylandMouseListener::handleFrame() {}
@@ -117,15 +107,13 @@ void WaylandMouseListener::handleAxisStop(u32, u32) {}
 
 void WaylandMouseListener::handleAxisDiscrete(u32 axis, i32 discrete)
 {
-    if (scrollAction_.hasScrollAction()) {
-        WMAMouseScroll scroll;
-        if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
-            scroll.yOffset = static_cast<f64>(discrete);
-        } else if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
-            scroll.xOffset = static_cast<f64>(discrete);
-        }
-        scrollAction_.executeScroll(scroll);
+    WMAMouseScroll scroll;
+    if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+        scroll.yOffset = static_cast<f64>(discrete);
+    } else if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
+        scroll.xOffset = static_cast<f64>(discrete);
     }
+    dispatchScroll(scroll);
 }
 
 void WaylandMouseListener::updateCursorState()

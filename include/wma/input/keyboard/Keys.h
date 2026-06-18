@@ -8,7 +8,7 @@
 #endif
 
 #ifdef WMA_ENABLE_SDL
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #endif
 
 #ifdef WMA_ENABLE_X11
@@ -136,6 +136,8 @@ enum Key : i32 {
 
     KEY_UNKNOWN = -1
 };
+
+constexpr usize KEY_COUNT = static_cast<usize>(KEY_KP_ENTER) + 1u;
 
 #ifdef WMA_ENABLE_GLFW
 
@@ -265,36 +267,36 @@ inline Key mapGLFWKey(int glfwKey) {
 
 
 #ifdef WMA_ENABLE_SDL
-//! Map keys to SDL2
+//! Map keys to SDL3
 inline Key mapSDLKey(SDL_Keycode sdlKey) {
     switch (sdlKey) {
     // Letters
-    case SDLK_a: return Key::KEY_A;
-    case SDLK_b: return Key::KEY_B;
-    case SDLK_c: return Key::KEY_C;
-    case SDLK_d: return Key::KEY_D;
-    case SDLK_e: return Key::KEY_E;
-    case SDLK_f: return Key::KEY_F;
-    case SDLK_g: return Key::KEY_G;
-    case SDLK_h: return Key::KEY_H;
-    case SDLK_i: return Key::KEY_I;
-    case SDLK_j: return Key::KEY_J;
-    case SDLK_k: return Key::KEY_K;
-    case SDLK_l: return Key::KEY_L;
-    case SDLK_m: return Key::KEY_M;
-    case SDLK_n: return Key::KEY_N;
-    case SDLK_o: return Key::KEY_O;
-    case SDLK_p: return Key::KEY_P;
-    case SDLK_q: return Key::KEY_Q;
-    case SDLK_r: return Key::KEY_R;
-    case SDLK_s: return Key::KEY_S;
-    case SDLK_t: return Key::KEY_T;
-    case SDLK_u: return Key::KEY_U;
-    case SDLK_v: return Key::KEY_V;
-    case SDLK_w: return Key::KEY_W;
-    case SDLK_x: return Key::KEY_X;
-    case SDLK_y: return Key::KEY_Y;
-    case SDLK_z: return Key::KEY_Z;
+    case SDLK_A: return Key::KEY_A;
+    case SDLK_B: return Key::KEY_B;
+    case SDLK_C: return Key::KEY_C;
+    case SDLK_D: return Key::KEY_D;
+    case SDLK_E: return Key::KEY_E;
+    case SDLK_F: return Key::KEY_F;
+    case SDLK_G: return Key::KEY_G;
+    case SDLK_H: return Key::KEY_H;
+    case SDLK_I: return Key::KEY_I;
+    case SDLK_J: return Key::KEY_J;
+    case SDLK_K: return Key::KEY_K;
+    case SDLK_L: return Key::KEY_L;
+    case SDLK_M: return Key::KEY_M;
+    case SDLK_N: return Key::KEY_N;
+    case SDLK_O: return Key::KEY_O;
+    case SDLK_P: return Key::KEY_P;
+    case SDLK_Q: return Key::KEY_Q;
+    case SDLK_R: return Key::KEY_R;
+    case SDLK_S: return Key::KEY_S;
+    case SDLK_T: return Key::KEY_T;
+    case SDLK_U: return Key::KEY_U;
+    case SDLK_V: return Key::KEY_V;
+    case SDLK_W: return Key::KEY_W;
+    case SDLK_X: return Key::KEY_X;
+    case SDLK_Y: return Key::KEY_Y;
+    case SDLK_Z: return Key::KEY_Z;
 
         // Numbers
     case SDLK_0: return Key::KEY_0;
@@ -359,8 +361,8 @@ inline Key mapSDLKey(SDL_Keycode sdlKey) {
     case SDLK_RIGHTBRACKET: return Key::KEY_RIGHT_BRACKET;
     case SDLK_BACKSLASH: return Key::KEY_BACKSLASH;
     case SDLK_SEMICOLON: return Key::KEY_SEMICOLON;
-    case SDLK_QUOTE: return Key::KEY_APOSTROPHE;
-    case SDLK_BACKQUOTE: return Key::KEY_GRAVE;
+    case SDLK_APOSTROPHE: return Key::KEY_APOSTROPHE;
+    case SDLK_GRAVE: return Key::KEY_GRAVE;
     case SDLK_COMMA: return Key::KEY_COMMA;
     case SDLK_PERIOD: return Key::KEY_PERIOD;
     case SDLK_SLASH: return Key::KEY_SLASH;

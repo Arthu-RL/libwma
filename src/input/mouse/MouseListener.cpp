@@ -1,45 +1,106 @@
 #include "wma/input/mouse/MouseListener.hpp"
 
+#include <algorithm>
+#include <utility>
+
 namespace wma {
 
 MouseListener::MouseListener()
     : currentPosition_{}
     , lastPosition_{}
 {
-    moveAction_ = MouseAction(
-        [](const WMAMousePosition&) {}
-    );
-    scrollAction_ = MouseAction(
-        [](const WMAMouseScroll&) {}
-    );
+    buttonBindings_.emplace_back();
+    moveActions_.emplace_back();
+    scrollActions_.emplace_back();
 }
 
 MouseListener::~MouseListener() = default;
 
+InputContextId MouseListener::createContext() {
+    const InputContextId context = contexts_.createContext();
+    ensureContextCapacity(context);
+    return context;
+}
+
+void MouseListener::setActiveContext(InputContextId context) {
+    contexts_.setActiveContext(context);
+}
+
+void MouseListener::pushContext(InputContextId context) {
+    contexts_.pushContext(context);
+}
+
+void MouseListener::popContext() {
+    contexts_.popContext();
+}
+
+InputContextId MouseListener::getActiveContext() const {
+    return contexts_.activeContext();
+}
+
+InputContextId MouseListener::getResolvedContext() const {
+    return contexts_.resolved();
+}
+
 void MouseListener::addButtonAction(i32 button, MouseAction action) {
-    buttonActions_[button] = std::move(action);
+    addButtonAction(button, std::move(action), contexts_.resolved());
+}
+
+void MouseListener::addButtonAction(i32 button, MouseAction action, InputContextId context) {
+    if (button < 0 || static_cast<usize>(button) >= MOUSE_BUTTON_COUNT) [[unlikely]] return;
+    ensureContextCapacity(context);
+    buttonBindings_[context][static_cast<usize>(button)] = std::move(action);
 }
 
 void MouseListener::removeButtonAction(i32 button) {
-    buttonActions_.erase(button);
+    removeButtonAction(button, contexts_.resolved());
+}
+
+void MouseListener::removeButtonAction(i32 button, InputContextId context) {
+    if (button < 0 || static_cast<usize>(button) >= MOUSE_BUTTON_COUNT) [[unlikely]] return;
+    ensureContextCapacity(context);
+    buttonBindings_[context].clearSlot(static_cast<usize>(button));
 }
 
 void MouseListener::setMoveAction(MouseAction action) {
-    moveAction_ = std::move(action);
+    setMoveAction(std::move(action), contexts_.resolved());
+}
+
+void MouseListener::setMoveAction(MouseAction action, InputContextId context) {
+    ensureContextCapacity(context);
+    moveActions_[context] = std::move(action);
 }
 
 void MouseListener::setScrollAction(MouseAction action) {
-    scrollAction_ = std::move(action);
+    setScrollAction(std::move(action), contexts_.resolved());
+}
+
+void MouseListener::setScrollAction(MouseAction action, InputContextId context) {
+    ensureContextCapacity(context);
+    scrollActions_[context] = std::move(action);
 }
 
 void MouseListener::clearAllActions() {
-    buttonActions_.clear();
-    moveAction_ = MouseAction([](const WMAMousePosition&) {});
-    scrollAction_ = MouseAction([](const WMAMouseScroll&) {});
+    std::ranges::for_each(buttonBindings_, [](auto& t) { t.clear(); });
+    std::ranges::for_each(moveActions_,   [](auto& a) { a = MouseAction{}; });
+    std::ranges::for_each(scrollActions_, [](auto& a) { a = MouseAction{}; });
+}
+
+void MouseListener::clearAllActions(InputContextId context) {
+    ensureContextCapacity(context);
+    buttonBindings_[context].clear();
+    moveActions_[context]   = MouseAction{};
+    scrollActions_[context] = MouseAction{};
 }
 
 bool MouseListener::hasButtonAction(i32 button) const {
-    return buttonActions_.find(button) != buttonActions_.end();
+    return hasButtonAction(button, contexts_.resolved());
+}
+
+bool MouseListener::hasButtonAction(i32 button, InputContextId context) const {
+    if (button < 0 || static_cast<usize>(button) >= MOUSE_BUTTON_COUNT) [[unlikely]] return false;
+    if (context >= buttonBindings_.size()) return false;
+    return buttonBindings_[context].has(static_cast<usize>(button));
 }
 
 WMAMousePosition MouseListener::getCurrentPosition() const {
@@ -53,47 +114,64 @@ void MouseListener::setCursorEnabled(bool enabled) {
     }
 }
 
-bool MouseListener::isCursorEnabled() const {
-    return cursorEnabled_;
-}
+bool MouseListener::isCursorEnabled() const { return cursorEnabled_; }
 
-void MouseListener::setSensitivity(f64 sensitivity) {
-    sensitivity_ = sensitivity;
-}
+void MouseListener::setSensitivity(f64 sensitivity) { sensitivity_ = sensitivity; }
 
-f64 MouseListener::getSensitivity() const {
-    return sensitivity_;
-}
+f64 MouseListener::getSensitivity() const { return sensitivity_; }
 
 void MouseListener::processPendingEvents(const PendingEvent& event) {
     switch (event.type) {
-    case PendingEvent::WMAMove:
-        if (moveAction_.hasMoveAction()) {
-            moveAction_.executeMove(event.position);
-        }
-        break;
-    case PendingEvent::WMAScroll:
-        if (scrollAction_.hasScrollAction()) {
-            scrollAction_.executeScroll(event.scroll);
-        }
-        break;
-    case PendingEvent::WMAButtonPress: {
-        auto it = buttonActions_.find(event.button);
-        if (it != buttonActions_.end()) {
-            it->second.executePress();
-        }
-        break;
+    case PendingEvent::WMAMove:          dispatchMove(event.position);    break;
+    case PendingEvent::WMAScroll:        dispatchScroll(event.scroll);    break;
+    case PendingEvent::WMAButtonPress:   dispatchButtonPress(event.button); break;
+    case PendingEvent::WMAButtonRelease: dispatchButtonRelease(event.button); break;
+    case PendingEvent::WMANone:          break;
+    default: std::unreachable();
     }
-    case PendingEvent::WMAButtonRelease: {
-        auto it = buttonActions_.find(event.button);
-        if (it != buttonActions_.end()) {
-            it->second.executeRelease();
-        }
-        break;
-    }
-    case PendingEvent::WMANone:
-    default:
-        break;
+}
+
+void MouseListener::dispatchButtonPress(i32 button) {
+    if (button < 0 || static_cast<usize>(button) >= MOUSE_BUTTON_COUNT) [[unlikely]] return;
+    [[assume(button >= 0)]];
+    [[assume(static_cast<usize>(button) < MOUSE_BUTTON_COUNT)]];
+
+    const InputContextId ctx = contexts_.resolved();
+    if (ctx >= buttonBindings_.size()) [[unlikely]] return;
+    [[assume(ctx < buttonBindings_.size())]];
+
+    buttonBindings_[ctx][static_cast<usize>(button)].executePress();
+}
+
+void MouseListener::dispatchButtonRelease(i32 button) {
+    if (button < 0 || static_cast<usize>(button) >= MOUSE_BUTTON_COUNT) [[unlikely]] return;
+    [[assume(button >= 0)]];
+    [[assume(static_cast<usize>(button) < MOUSE_BUTTON_COUNT)]];
+
+    const InputContextId ctx = contexts_.resolved();
+    if (ctx >= buttonBindings_.size()) [[unlikely]] return;
+    [[assume(ctx < buttonBindings_.size())]];
+
+    buttonBindings_[ctx][static_cast<usize>(button)].executeRelease();
+}
+
+void MouseListener::dispatchMove(const WMAMousePosition& position) {
+    const InputContextId ctx = contexts_.resolved();
+    if (ctx >= moveActions_.size()) [[unlikely]] return;
+    moveActions_[ctx].executeMove(position);
+}
+
+void MouseListener::dispatchScroll(const WMAMouseScroll& scroll) {
+    const InputContextId ctx = contexts_.resolved();
+    if (ctx >= scrollActions_.size()) [[unlikely]] return;
+    scrollActions_[ctx].executeScroll(scroll);
+}
+
+void MouseListener::ensureContextCapacity(InputContextId context) {
+    while (buttonBindings_.size() <= context) {
+        buttonBindings_.emplace_back();
+        moveActions_.emplace_back();
+        scrollActions_.emplace_back();
     }
 }
 

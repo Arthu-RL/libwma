@@ -6,8 +6,8 @@
 
 #ifdef WMA_ENABLE_SDL
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 namespace wma {
 
@@ -55,7 +55,7 @@ namespace wma {
     }
 
     void SdlWindowManager::createWindow(const char* windowName) {
-        u32 windowFlags = SDL_WINDOW_SHOWN;
+        SDL_WindowFlags windowFlags = 0;
         if (windowDetails_.resizable) windowFlags |= SDL_WINDOW_RESIZABLE;
         if (windowDetails_.fullscreen) windowFlags |= SDL_WINDOW_FULLSCREEN;
 
@@ -74,7 +74,6 @@ namespace wma {
 
         window_ = SDL_CreateWindow(
             windowName,
-            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             windowDetails_.width, windowDetails_.height,
             windowFlags
         );
@@ -115,7 +114,7 @@ namespace wma {
 
     void* SdlWindowManager::getWindowInstance() { return window_; }
 
-    u32 SdlWindowManager::getSDLWindowFlags() const {
+    u64 SdlWindowManager::getSDLWindowFlags() const {
         return window_ ? SDL_GetWindowFlags(window_) : 0;
     }
 
@@ -124,14 +123,11 @@ namespace wma {
 
     const std::vector<const char*> SdlWindowManager::getVulkanExtensions() const {
         u32 extensionCount = 0;
-        if (!SDL_Vulkan_GetInstanceExtensions(window_, &extensionCount, nullptr)) {
-            throw GraphicsException("Failed to get Vulkan extension count: " + std::string(SDL_GetError()));
-        }
-        std::vector<const char*> extensions(extensionCount);
-        if (!SDL_Vulkan_GetInstanceExtensions(window_, &extensionCount, extensions.data())) {
+        const char* const* extNames = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+        if (!extNames) {
             throw GraphicsException("Failed to get Vulkan extensions: " + std::string(SDL_GetError()));
         }
-        return extensions;
+        return std::vector<const char*>(extNames, extNames + extensionCount);
     }
 
     KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
@@ -144,20 +140,24 @@ namespace wma {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     windowShouldClose_ = true;
                     break;
-                case SDL_WINDOWEVENT:
+                case SDL_EVENT_WINDOW_RESIZED:
+                case SDL_EVENT_WINDOW_FOCUS_GAINED:
+                case SDL_EVENT_WINDOW_FOCUS_LOST:
+                case SDL_EVENT_WINDOW_MINIMIZED:
+                case SDL_EVENT_WINDOW_RESTORED:
                     handleWindowEvent(&event);
                     break;
-                case SDL_KEYDOWN:
-                case SDL_KEYUP:
+                case SDL_EVENT_KEY_DOWN:
+                case SDL_EVENT_KEY_UP:
                     keyboardListener_->handleKeyEvent(event.key);
                     break;
-                case SDL_MOUSEBUTTONDOWN:
-                case SDL_MOUSEBUTTONUP:
-                case SDL_MOUSEMOTION:
-                case SDL_MOUSEWHEEL:
+                case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                case SDL_EVENT_MOUSE_BUTTON_UP:
+                case SDL_EVENT_MOUSE_MOTION:
+                case SDL_EVENT_MOUSE_WHEEL:
                     mouseListener_->handleEvent(event);
                     break;
                 default:
@@ -167,23 +167,22 @@ namespace wma {
     }
 
     void SdlWindowManager::handleWindowEvent(const SDL_Event* event) {
-        switch (event->window.event) {
-            case SDL_WINDOWEVENT_RESIZED:
-            case SDL_WINDOWEVENT_SIZE_CHANGED:
+        switch (event->type) {
+            case SDL_EVENT_WINDOW_RESIZED:
                 windowDetails_.width = event->window.data1;
                 windowDetails_.height = event->window.data2;
                 windowFlags_.resized = true;
                 break;
-            case SDL_WINDOWEVENT_FOCUS_GAINED:
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
                 windowFlags_.focused = true;
                 break;
-            case SDL_WINDOWEVENT_FOCUS_LOST:
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
                 windowFlags_.focused = false;
                 break;
-            case SDL_WINDOWEVENT_MINIMIZED:
+            case SDL_EVENT_WINDOW_MINIMIZED:
                 windowFlags_.minimized = true;
                 break;
-            case SDL_WINDOWEVENT_RESTORED:
+            case SDL_EVENT_WINDOW_RESTORED:
                 windowFlags_.minimized = false;
                 break;
             default:
@@ -192,7 +191,7 @@ namespace wma {
     }
 
     void SdlWindowManager::initializeSDL() {
-        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
+        if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
             throw WMAException("Failed to initialize SDL: " + std::string(SDL_GetError()));
         }
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
@@ -204,7 +203,7 @@ namespace wma {
             SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
         }
         if (graphicsAPI_ == GraphicsAPI::Vulkan) {
-            if (SDL_Vulkan_LoadLibrary(nullptr) != 0) {
+            if (!SDL_Vulkan_LoadLibrary(nullptr)) {
                 throw GraphicsException("Failed to load Vulkan library: " + std::string(SDL_GetError()));
             }
         }
@@ -214,7 +213,7 @@ namespace wma {
     WmaCode SdlWindowManager::destroy() {
         windowShouldClose_ = true;
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
-            SDL_GL_DeleteContext(SDL_GL_GetCurrentContext());
+            SDL_GL_DestroyContext(SDL_GL_GetCurrentContext());
         }
         if (window_) {
             SDL_DestroyWindow(window_);

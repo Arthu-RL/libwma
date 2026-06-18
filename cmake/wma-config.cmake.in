@@ -5,7 +5,7 @@ include(CMakeFindDependencyMacro)
 find_dependency(ink REQUIRED)
 
 if(@WMA_ENABLE_SDL@)
-    find_dependency(SDL2 REQUIRED)
+    find_dependency(SDL3 REQUIRED CONFIG COMPONENTS SDL3)
 endif()
 
 if(@WMA_ENABLE_GLFW@)
