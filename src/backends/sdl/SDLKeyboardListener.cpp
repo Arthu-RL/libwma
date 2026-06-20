@@ -19,7 +19,8 @@ void SDLKeyboardListener::initialize(SDL_Window* window)
         throw InputException("Invalid SDL window pointer");
     }
     sdlWindow_ = window;
-    SDL_SetWindowData(window, "KeyboardListener", this);
+    SDL_PropertiesID props = SDL_GetWindowProperties(window);
+    SDL_SetPointerProperty(props, "KeyboardListener", this);
 }
 
 void SDLKeyboardListener::handleKeyEvent(const SDL_KeyboardEvent& keyEvent)

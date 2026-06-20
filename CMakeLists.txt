@@ -18,7 +18,6 @@ option(WMA_ENABLE_SDL     "Enable SDL3 backend"                   ON)
 option(WMA_ENABLE_X11     "Enable X11 backend"                    ON)
 option(WMA_ENABLE_WAYLAND "Enable Wayland backend"                ON)
 option(WMA_BUILD_EXAMPLES "Build example applications"            ON)
-option(WMA_AUTO_INSTALL   "Auto-install after build"              ON)
 option(WMA_BUILD_TESTS    "Build unit tests"                      OFF)
 
 if(NOT (WMA_ENABLE_GLFW OR WMA_ENABLE_SDL OR WMA_ENABLE_X11 OR WMA_ENABLE_WAYLAND))
@@ -92,15 +91,10 @@ target_sources(${PROJECT_NAME}
             include/wma/input/mouse/MouseInputCallback.hpp
 )
 
-# =================================================================
-# Core dependency
-# =================================================================
+
 find_package(ink REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC ink)
 
-# =================================================================
-# GLFW backend
-# =================================================================
 if(WMA_ENABLE_GLFW)
     find_package(glfw3 REQUIRED)
 
@@ -125,9 +119,6 @@ if(WMA_ENABLE_GLFW)
     )
 endif()
 
-# =================================================================
-# SDL3 backend
-# =================================================================
 if(WMA_ENABLE_SDL)
     find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 
@@ -152,9 +143,6 @@ if(WMA_ENABLE_SDL)
     )
 endif()
 
-# =================================================================
-# X11 backend
-# =================================================================
 if(WMA_ENABLE_X11)
     find_package(X11 REQUIRED)
 
@@ -179,9 +167,6 @@ if(WMA_ENABLE_X11)
     )
 endif()
 
-# =================================================================
-# Wayland backend
-# =================================================================
 if(WMA_ENABLE_WAYLAND)
     find_package(PkgConfig REQUIRED)
 
@@ -291,9 +276,6 @@ if(WMA_ENABLE_WAYLAND)
     )
 endif()
 
-# =================================================================
-# Examples
-# =================================================================
 if(WMA_BUILD_EXAMPLES)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_window/main.cpp")
         add_executable(basic_window examples/basic_window/main.cpp)
@@ -322,9 +304,6 @@ if(WMA_BUILD_EXAMPLES)
     endif()
 endif()
 
-# =================================================================
-# Tests
-# =================================================================
 if(WMA_BUILD_TESTS)
     enable_testing()
 
@@ -335,9 +314,6 @@ if(WMA_BUILD_TESTS)
     endif()
 endif()
 
-# =================================================================
-# Install target, headers, library
-# =================================================================
 install(
     TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}-targets
@@ -350,9 +326,6 @@ install(
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-# =================================================================
-# Install CMake target export
-# =================================================================
 install(
     EXPORT ${PROJECT_NAME}-targets
     FILE ${PROJECT_NAME}-targets.cmake
@@ -360,9 +333,6 @@ install(
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
 
-# =================================================================
-# Package config
-# =================================================================
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
@@ -381,16 +351,3 @@ install(
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
-
-# =================================================================
-# Optional auto install
-# =================================================================
-if(WMA_AUTO_INSTALL)
-    add_custom_command(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Auto-installing ${PROJECT_NAME} to ${CMAKE_INSTALL_PREFIX}"
-    )
-endif()

@@ -15,11 +15,13 @@ SDLMouseListener::SDLMouseListener()
 
 void SDLMouseListener::initialize(SDL_Window* window)
 {
-    if (!window) {
+    if (!window)
         throw InputException("Invalid SDL window pointer");
-    }
+
     sdlWindow_ = window;
-    SDL_SetWindowData(window, "MouseListener", this);
+    SDL_PropertiesID props = SDL_GetWindowProperties(window);
+    SDL_SetPointerProperty(props, "MouseListener", this);
+
     float x, y;
     SDL_GetMouseState(&x, &y);
     currentPosition_ = WMAMousePosition(static_cast<f64>(x), static_cast<f64>(y));

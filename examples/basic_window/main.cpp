@@ -10,7 +10,7 @@ int main() {
         INK_LOG << "Starting Window...";
 
         auto windowManager = wma::createWindowManager(
-            wma::getDefaultBackend(),
+            wma::WindowBackend::SDL3,
             windowConfig,
             wma::GraphicsAPI::CPU
         );

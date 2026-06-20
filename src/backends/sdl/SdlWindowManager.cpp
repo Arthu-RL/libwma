@@ -133,7 +133,7 @@ namespace wma {
     KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
     MouseListener& SdlWindowManager::getMouseListener() noexcept { return *mouseListener_; }
     bool SdlWindowManager::shouldClose() const { return windowShouldClose_; }
-    WindowBackend SdlWindowManager::getBackendType() const { return WindowBackend::SDL2; }
+    WindowBackend SdlWindowManager::getBackendType() const { return WindowBackend::SDL3; }
     GraphicsAPI SdlWindowManager::getGraphicsAPI() const { return graphicsAPI_; }
 
     void SdlWindowManager::processEvents() {

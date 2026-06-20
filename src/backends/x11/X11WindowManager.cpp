@@ -3,7 +3,6 @@
 #include "wma/core/FrameTimer.hpp"
 
 #include <ink/InkAssert.h>
-#include <ink/InkException.h>
 
 namespace wma {
 
@@ -86,7 +85,7 @@ void X11WindowManager::createWindow(const char* windowName)
 
     if (!window_) {
         XCloseDisplay(display_);
-        INK_THROW("Failed to create X11 window.");
+        throw std::runtime_error("Failed to create X11 window.");
     }
 
     XStoreName(display_, window_, windowName);
