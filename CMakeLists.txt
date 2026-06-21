@@ -9,9 +9,6 @@ project(wma
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-# =================================================================
-# Options
-# =================================================================
 option(BUILD_SHARED_LIBS  "Build shared library"                  OFF)
 option(WMA_ENABLE_GLFW    "Enable GLFW backend"                   OFF)
 option(WMA_ENABLE_SDL     "Enable SDL3 backend"                   ON)
@@ -24,9 +21,6 @@ if(NOT (WMA_ENABLE_GLFW OR WMA_ENABLE_SDL OR WMA_ENABLE_X11 OR WMA_ENABLE_WAYLAN
     message(FATAL_ERROR "At least one backend must be enabled")
 endif()
 
-# =================================================================
-# Target
-# =================================================================
 add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
@@ -43,9 +37,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Release>:-O3 -DNDEBUG>
 )
 
-# =================================================================
-# Include paths
-# =================================================================
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -54,9 +45,6 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# =================================================================
-# Core sources and public headers
-# =================================================================
 target_sources(${PROJECT_NAME}
     PRIVATE
         src/exceptions/WMAException.cpp
@@ -286,19 +274,6 @@ if(WMA_BUILD_EXAMPLES)
         )
 
         set_target_properties(basic_window PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-        )
-    endif()
-
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/input_handling/main.cpp")
-        add_executable(input_handling examples/input_handling/main.cpp)
-
-        target_link_libraries(input_handling
-            PRIVATE
-                ${PROJECT_NAME}::${PROJECT_NAME}
-        )
-
-        set_target_properties(input_handling PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
         )
     endif()
