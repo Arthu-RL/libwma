@@ -57,8 +57,6 @@ cmake -S ./libwma -B ./libwma/build \
     -DWMA_ENABLE_SDL=ON \
     -DWMA_ENABLE_X11=ON \
     -DWMA_ENABLE_WAYLAND=ON \
-    -DWMA_ENABLE_VULKAN=ON \
-    -DWMA_ENABLE_OPENGL=ON \
     -DWMA_BUILD_EXAMPLES=ON && \
 cmake --build ./libwma/build --target install
 ```
@@ -70,8 +68,8 @@ cmake --build ./libwma/build --target install
 | `WMA_BUILD_SHARED` | ON | Build shared library |
 | `WMA_ENABLE_GLFW` | ON | Enable GLFW backend |
 | `WMA_ENABLE_SDL` | ON | Enable SDL2 backend |
-| `WMA_ENABLE_VULKAN` | ON | Enable Vulkan support |
-| `WMA_ENABLE_OPENGL` | ON | Enable OpenGL support |
+| `WMA_ENABLE_X11` | ON | Enable X11 backend |
+| `WMA_ENABLE_WAYLAND` | ON | Enable WAYLAND backend |
 | `WMA_BUILD_EXAMPLES` | ON | Build example applications |
 | `WMA_BUILD_TESTS` | OFF | Build unit tests |
 
