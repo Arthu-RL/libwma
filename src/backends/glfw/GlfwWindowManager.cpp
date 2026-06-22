@@ -146,7 +146,9 @@ namespace wma {
             actions();
 
             if (graphicsAPI_ == GraphicsAPI::OpenGL) {
+#ifdef WMA_ENABLE_OPENGL
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+#endif
                 glfwSwapBuffers(window_);
             }
 

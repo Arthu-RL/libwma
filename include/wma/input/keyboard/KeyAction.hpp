@@ -3,66 +3,43 @@
 
 #include <functional>
 
+#include "wma/input/InputCallback.hpp"
+
 namespace wma {
 
-    /**
-     * @brief Encapsulates key press and release actions
-     */
-    class KeyAction {
-    public:
-        using ActionCallback = std::function<void()>;
-        
-        KeyAction(ActionCallback onPress = nullptr, ActionCallback onRelease = nullptr)
-            : onPress_(std::move(onPress)), onRelease_(std::move(onRelease)) {}
-        
-        // Copy constructor
-        KeyAction(const KeyAction& other) = default;
-        
-        // Move constructor
-        KeyAction(KeyAction&& other) noexcept = default;
-        
-        // Copy assignment
-        KeyAction& operator=(const KeyAction& other) = default;
-        
-        // Move assignment
-        KeyAction& operator=(KeyAction&& other) noexcept = default;
-        
-        /**
-         * @brief Execute the press action if available
-         */
-        void executePress() const {
-            if (onPress_) {
-                onPress_();
-            }
-        }
-        
-        /**
-         * @brief Execute the release action if available
-         */
-        void executeRelease() const {
-            if (onRelease_) {
-                onRelease_();
-            }
-        }
-        
-        /**
-         * @brief Check if press action is available
-         */
-        bool hasPressAction() const {
-            return static_cast<bool>(onPress_);
-        }
-        
-        /**
-         * @brief Check if release action is available
-         */
-        bool hasReleaseAction() const {
-            return static_cast<bool>(onRelease_);
-        }
-        
-    private:
-        ActionCallback onPress_;
-        ActionCallback onRelease_;
-    };
+// Binds a press and/or release callback to a key.
+// The fast path (no captures) uses a raw function pointer with zero overhead.
+// Capturing lambdas are stored via std::move_only_function, allowing move-only
+// captures (e.g. std::unique_ptr) without requiring copyability.
+class KeyAction {
+public:
+    // Accepting std::move_only_function lets users pass any callable — plain
+    // lambdas, capturing lambdas, move-only closures, or nullptr.
+    using Callback = std::move_only_function<void()>;
+
+    constexpr KeyAction() = default;
+
+    KeyAction(Callback onPress, Callback onRelease = nullptr)
+        : onPress_ (InputCallback::from(std::move(onPress)))
+        , onRelease_(InputCallback::from(std::move(onRelease))) {}
+
+    // Fast constructor: raw function pointer + userdata, zero heap allocation.
+    KeyAction(void(*onPress)(void*),  void* pressData,
+              void(*onRelease)(void*) = nullptr, void* releaseData = nullptr) noexcept
+        : onPress_ (onPress,  pressData)
+        , onRelease_(onRelease, releaseData) {}
+
+    void executePress()   const { onPress_();   }
+    void executeRelease() const { onRelease_(); }
+
+    [[nodiscard]] bool hasPressAction()   const noexcept { return onPress_.valid();   }
+    [[nodiscard]] bool hasReleaseAction() const noexcept { return onRelease_.valid(); }
+    [[nodiscard]] bool isBound()          const noexcept { return hasPressAction() || hasReleaseAction(); }
+
+private:
+    InputCallback onPress_;
+    InputCallback onRelease_;
+};
 
 } // namespace wma
 

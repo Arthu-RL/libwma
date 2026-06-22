@@ -37,28 +37,17 @@ void X11MouseListener::handleEvent(const XEvent* event)
     case ButtonPress: {
         const int btn = event->xbutton.button;
         if (btn == Button4 || btn == Button5) {
-            f64 scrollY = (btn == Button4) ? 1.0 : -1.0;
-            WMAMouseScroll scroll(0.0, scrollY);
-            if (scrollAction_.hasScrollAction()) {
-                scrollAction_.executeScroll(scroll);
-            }
+            const f64 scrollY = (btn == Button4) ? 1.0 : -1.0;
+            dispatchScroll(WMAMouseScroll(0.0, scrollY));
             break;
         }
-        i32 unifiedButton = convertButton(btn);
-        auto it = buttonActions_.find(unifiedButton);
-        if (it != buttonActions_.end()) {
-            it->second.executePress();
-        }
+        dispatchButtonPress(convertButton(btn));
         break;
     }
     case ButtonRelease: {
         const int btn = event->xbutton.button;
         if (btn >= Button4) break;
-        i32 unifiedButton = convertButton(btn);
-        auto it = buttonActions_.find(unifiedButton);
-        if (it != buttonActions_.end()) {
-            it->second.executeRelease();
-        }
+        dispatchButtonRelease(convertButton(btn));
         break;
     }
     case MotionNotify: {
@@ -71,9 +60,7 @@ void X11MouseListener::handleEvent(const XEvent* event)
         f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
         f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
         currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
-        if (moveAction_.hasMoveAction()) {
-            moveAction_.executeMove(currentPosition_);
-        }
+        dispatchMove(currentPosition_);
         lastPosition_ = WMAMousePosition(xpos, ypos);
         break;
     }

@@ -3,7 +3,7 @@
 #include "wma/exceptions/WMAException.hpp"
 #include "wma/core/Types.hpp"
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 namespace wma {
 
@@ -15,12 +15,14 @@ SDLMouseListener::SDLMouseListener()
 
 void SDLMouseListener::initialize(SDL_Window* window)
 {
-    if (!window) {
+    if (!window)
         throw InputException("Invalid SDL window pointer");
-    }
+
     sdlWindow_ = window;
-    SDL_SetWindowData(window, "MouseListener", this);
-    i32 x, y;
+    SDL_PropertiesID props = SDL_GetWindowProperties(window);
+    SDL_SetPointerProperty(props, "MouseListener", this);
+
+    float x, y;
     SDL_GetMouseState(&x, &y);
     currentPosition_ = WMAMousePosition(static_cast<f64>(x), static_cast<f64>(y));
     lastPosition_ = currentPosition_;
@@ -31,20 +33,17 @@ void SDLMouseListener::initialize(SDL_Window* window)
 void SDLMouseListener::handleEvent(const SDL_Event& event)
 {
     switch (event.type) {
-    case SDL_MOUSEBUTTONDOWN:
-    case SDL_MOUSEBUTTONUP: {
-        i32 unifiedButton = convertButton(event.button.button);
-        auto it = buttonActions_.find(unifiedButton);
-        if (it != buttonActions_.end()) {
-            if (event.type == SDL_MOUSEBUTTONDOWN) {
-                it->second.executePress();
-            } else {
-                it->second.executeRelease();
-            }
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+    case SDL_EVENT_MOUSE_BUTTON_UP: {
+        const i32 unifiedButton = convertButton(event.button.button);
+        if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+            dispatchButtonPress(unifiedButton);
+        } else {
+            dispatchButtonRelease(unifiedButton);
         }
         break;
     }
-    case SDL_MOUSEMOTION: {
+    case SDL_EVENT_MOUSE_MOTION: {
         if (firstMouse_) {
             lastPosition_ = WMAMousePosition(
                 static_cast<f64>(event.motion.x),
@@ -57,20 +56,16 @@ void SDLMouseListener::handleEvent(const SDL_Event& event)
         f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
         f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
         currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
-        if (moveAction_.hasMoveAction()) {
-            moveAction_.executeMove(currentPosition_);
-        }
+        dispatchMove(currentPosition_);
         lastPosition_ = WMAMousePosition(xpos, ypos);
         break;
     }
-    case SDL_MOUSEWHEEL: {
+    case SDL_EVENT_MOUSE_WHEEL: {
         WMAMouseScroll scroll(
             static_cast<f64>(event.wheel.x),
             static_cast<f64>(event.wheel.y)
         );
-        if (scrollAction_.hasScrollAction()) {
-            scrollAction_.executeScroll(scroll);
-        }
+        dispatchScroll(scroll);
         break;
     }
     default:
@@ -82,11 +77,11 @@ void SDLMouseListener::updateCursorState()
 {
     if (sdlWindow_) {
         if (cursorEnabled_) {
-            SDL_ShowCursor(SDL_ENABLE);
-            SDL_SetRelativeMouseMode(SDL_FALSE);
+            SDL_ShowCursor();
+            SDL_SetWindowRelativeMouseMode(sdlWindow_, false);
         } else {
-            SDL_ShowCursor(SDL_DISABLE);
-            SDL_SetRelativeMouseMode(SDL_TRUE);
+            SDL_HideCursor();
+            SDL_SetWindowRelativeMouseMode(sdlWindow_, true);
         }
     }
 }

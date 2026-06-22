@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2.3)
+cmake_minimum_required(VERSION 4.3.3)
 
 project(wma
     VERSION 1.0.0
@@ -9,29 +9,22 @@ project(wma
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-# =================================================================
-# Options
-# =================================================================
 option(BUILD_SHARED_LIBS  "Build shared library"                  OFF)
 option(WMA_ENABLE_GLFW    "Enable GLFW backend"                   OFF)
-option(WMA_ENABLE_SDL     "Enable SDL2 backend"                   ON)
+option(WMA_ENABLE_SDL     "Enable SDL3 backend"                   ON)
 option(WMA_ENABLE_X11     "Enable X11 backend"                    ON)
 option(WMA_ENABLE_WAYLAND "Enable Wayland backend"                ON)
 option(WMA_BUILD_EXAMPLES "Build example applications"            ON)
-option(WMA_AUTO_INSTALL   "Auto-install after build"              ON)
 option(WMA_BUILD_TESTS    "Build unit tests"                      OFF)
 
 if(NOT (WMA_ENABLE_GLFW OR WMA_ENABLE_SDL OR WMA_ENABLE_X11 OR WMA_ENABLE_WAYLAND))
     message(FATAL_ERROR "At least one backend must be enabled")
 endif()
 
-# =================================================================
-# Target
-# =================================================================
 add_library(${PROJECT_NAME})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -44,9 +37,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Release>:-O3 -DNDEBUG>
 )
 
-# =================================================================
-# Include paths
-# =================================================================
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -55,14 +45,13 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# =================================================================
-# Core sources and public headers
-# =================================================================
 target_sources(${PROJECT_NAME}
     PRIVATE
         src/exceptions/WMAException.cpp
+        src/input/InputCallback.cpp
         src/input/keyboard/KeyboardListener.cpp
         src/input/mouse/MouseListener.cpp
+        src/input/mouse/MouseInputCallback.cpp
 
     PUBLIC
         FILE_SET public_headers
@@ -77,22 +66,23 @@ target_sources(${PROJECT_NAME}
             include/wma/core/WindowFlags.hpp
             include/wma/core/FrameTimer.hpp
             include/wma/exceptions/WMAException.hpp
+            include/wma/input/InputTypes.hpp
+            include/wma/input/InputCallback.hpp
+            include/wma/input/InputBindingTable.hpp
+            include/wma/input/InputContextStack.hpp
             include/wma/input/keyboard/KeyboardListener.hpp
             include/wma/input/keyboard/KeyAction.hpp
             include/wma/input/keyboard/Keys.h
             include/wma/input/mouse/MouseListener.hpp
             include/wma/input/mouse/MouseAction.hpp
+            include/wma/input/mouse/MouseTypes.hpp
+            include/wma/input/mouse/MouseInputCallback.hpp
 )
 
-# =================================================================
-# Core dependency
-# =================================================================
+
 find_package(ink REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC ink)
 
-# =================================================================
-# GLFW backend
-# =================================================================
 if(WMA_ENABLE_GLFW)
     find_package(glfw3 REQUIRED)
 
@@ -117,14 +107,11 @@ if(WMA_ENABLE_GLFW)
     )
 endif()
 
-# =================================================================
-# SDL2 backend
-# =================================================================
 if(WMA_ENABLE_SDL)
-    find_package(SDL2 REQUIRED)
+    find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3)
 
     target_compile_definitions(${PROJECT_NAME} PUBLIC WMA_ENABLE_SDL)
-    target_link_libraries(${PROJECT_NAME} PUBLIC SDL2)
+    target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3)
 
     target_sources(${PROJECT_NAME}
         PRIVATE
@@ -144,9 +131,6 @@ if(WMA_ENABLE_SDL)
     )
 endif()
 
-# =================================================================
-# X11 backend
-# =================================================================
 if(WMA_ENABLE_X11)
     find_package(X11 REQUIRED)
 
@@ -171,9 +155,6 @@ if(WMA_ENABLE_X11)
     )
 endif()
 
-# =================================================================
-# Wayland backend
-# =================================================================
 if(WMA_ENABLE_WAYLAND)
     find_package(PkgConfig REQUIRED)
 
@@ -283,9 +264,6 @@ if(WMA_ENABLE_WAYLAND)
     )
 endif()
 
-# =================================================================
-# Examples
-# =================================================================
 if(WMA_BUILD_EXAMPLES)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/basic_window/main.cpp")
         add_executable(basic_window examples/basic_window/main.cpp)
@@ -299,24 +277,8 @@ if(WMA_BUILD_EXAMPLES)
             RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
         )
     endif()
-
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/input_handling/main.cpp")
-        add_executable(input_handling examples/input_handling/main.cpp)
-
-        target_link_libraries(input_handling
-            PRIVATE
-                ${PROJECT_NAME}::${PROJECT_NAME}
-        )
-
-        set_target_properties(input_handling PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-        )
-    endif()
 endif()
 
-# =================================================================
-# Tests
-# =================================================================
 if(WMA_BUILD_TESTS)
     enable_testing()
 
@@ -327,9 +289,6 @@ if(WMA_BUILD_TESTS)
     endif()
 endif()
 
-# =================================================================
-# Install target, headers, library
-# =================================================================
 install(
     TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}-targets
@@ -342,9 +301,6 @@ install(
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-# =================================================================
-# Install CMake target export
-# =================================================================
 install(
     EXPORT ${PROJECT_NAME}-targets
     FILE ${PROJECT_NAME}-targets.cmake
@@ -352,9 +308,6 @@ install(
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
 
-# =================================================================
-# Package config
-# =================================================================
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake
@@ -373,16 +326,3 @@ install(
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
-
-# =================================================================
-# Optional auto install
-# =================================================================
-if(WMA_AUTO_INSTALL)
-    add_custom_command(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Auto-installing ${PROJECT_NAME} to ${CMAKE_INSTALL_PREFIX}"
-    )
-endif()

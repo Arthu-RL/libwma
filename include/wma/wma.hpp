@@ -48,7 +48,7 @@ namespace wma {
             return std::make_unique<GlfwWindowManager>(windowDetails, graphicsAPI);
 #endif
 #ifdef WMA_ENABLE_SDL
-        case WindowBackend::SDL2:
+        case WindowBackend::SDL3:
             return std::make_unique<SdlWindowManager>(windowDetails, graphicsAPI);
 #endif
 #ifdef WMA_ENABLE_WAYLAND
@@ -84,7 +84,7 @@ namespace wma {
         case WindowBackend::GLFW: return true;
 #endif
 #ifdef WMA_ENABLE_SDL
-        case WindowBackend::SDL2: return true;
+        case WindowBackend::SDL3: return true;
 #endif
 #ifdef WMA_ENABLE_WAYLAND
         case WindowBackend::WAYLAND: return true;

@@ -42,18 +42,12 @@ void GLFWMouseListener::initialize(GLFWwindow* window)
 
 void GLFWMouseListener::handleButtonEvent(i32 button, i32 action, i32 mods)
 {
-    i32 unifiedButton = convertButton(button);
-    if (buttonActions_.find(unifiedButton) != buttonActions_.end()) {
-        PendingEvent event;
-        event.button = unifiedButton;
-        if (action == GLFW_PRESS) {
-            event.type = PendingEvent::WMAButtonPress;
-        } else if (action == GLFW_RELEASE) {
-            event.type = PendingEvent::WMAButtonRelease;
-        }
-        if (event.type != PendingEvent::WMANone) {
-            processPendingEvents(event);
-        }
+    (void)mods;
+    const i32 unifiedButton = convertButton(button);
+    if (action == GLFW_PRESS) {
+        dispatchButtonPress(unifiedButton);
+    } else if (action == GLFW_RELEASE) {
+        dispatchButtonRelease(unifiedButton);
     }
 }
 
@@ -66,23 +60,13 @@ void GLFWMouseListener::handlePositionEvent(f64 xpos, f64 ypos)
     f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
     f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
     currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
-    if (moveAction_.hasMoveAction()) {
-        PendingEvent event;
-        event.type = PendingEvent::WMAMove;
-        event.position = currentPosition_;
-        processPendingEvents(event);
-    }
+    dispatchMove(currentPosition_);
     lastPosition_ = WMAMousePosition(xpos, ypos);
 }
 
 void GLFWMouseListener::handleScrollEvent(f64 xoffset, f64 yoffset)
 {
-    if (scrollAction_.hasScrollAction()) {
-        PendingEvent event;
-        event.type = PendingEvent::WMAScroll;
-        event.scroll = WMAMouseScroll(xoffset, yoffset);
-        processPendingEvents(event);
-    }
+    dispatchScroll(WMAMouseScroll(xoffset, yoffset));
 }
 
 void GLFWMouseListener::glfwMouseButtonCallback(GLFWwindow* window, i32 button, i32 action, i32 mods) {
@@ -104,7 +88,7 @@ GLFWMouseListener* GLFWMouseListener::getInstanceFromWindow(GLFWwindow* window) 
     if (!window) return nullptr;
     auto* userData = static_cast<GlfwUserData*>(glfwGetWindowUserPointer(window));
     if (!userData || !userData->mouseListener) return nullptr;
-    return dynamic_cast<GLFWMouseListener*>(userData->mouseListener);
+    return static_cast<GLFWMouseListener*>(userData->mouseListener);
 }
 
 void GLFWMouseListener::updateCursorState() {
