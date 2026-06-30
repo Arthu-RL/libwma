@@ -46,10 +46,7 @@ target_compile_options(wma PRIVATE
 
     $<$<CONFIG:Release>:-O3>
 
-    $<$<AND:
-        $<CONFIG:Release>,
-        $<BOOL:${WMA_NATIVE_OPTIMIZE}>
-    >:
+    $<$<AND:$<CONFIG:Release>,$<BOOL:${WMA_NATIVE_OPTIMIZE}>>:
         -march=native
         -mtune=native
     >
