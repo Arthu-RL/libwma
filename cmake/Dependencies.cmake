@@ -37,4 +37,26 @@ if(WMA_ENABLE_WAYLAND)
         wayland-cursor
         xkbcommon
     )
+
+    find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
+    pkg_get_variable(WAYLAND_PROTOCOLS_DATADIR wayland-protocols pkgdatadir)
+
+    set(WMA_WAYLAND_PROTO_DIR
+        "${CMAKE_BINARY_DIR}/include/wma/backends/wayland/protocols"
+        CACHE INTERNAL ""
+    )
+    file(MAKE_DIRECTORY "${WMA_WAYLAND_PROTO_DIR}")
+
+    execute_process(
+        COMMAND "${WAYLAND_SCANNER}" client-header
+            "${WAYLAND_PROTOCOLS_DATADIR}/stable/xdg-shell/xdg-shell.xml"
+            "${WMA_WAYLAND_PROTO_DIR}/xdg-shell-client-protocol.h"
+        RESULT_VARIABLE _wl_scanner_result
+    )
+    if(_wl_scanner_result)
+        message(FATAL_ERROR
+            "[wma] wayland-scanner failed to generate xdg-shell-client-protocol.h "
+            "(exit code: ${_wl_scanner_result})"
+        )
+    endif()
 endif()

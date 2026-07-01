@@ -8,6 +8,18 @@ file(GLOB_RECURSE WMA_SOURCES
     *.cpp
 )
 
+# Remove source files that belong to disabled backends so their
+# implementation-specific headers and macros are never required.
+foreach(_backend SDL GLFW X11 WAYLAND)
+    if(NOT WMA_ENABLE_${_backend})
+        string(TOLOWER "${_backend}" _lower)
+        file(GLOB_RECURSE _disabled CONFIGURE_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/backends/${_lower}/*.cpp"
+        )
+        list(REMOVE_ITEM WMA_SOURCES ${_disabled})
+    endif()
+endforeach()
+
 add_library(wma STATIC)
 
 add_library(wma::wma ALIAS wma)
@@ -73,4 +85,15 @@ endif()
 if(WMA_ENABLE_WAYLAND)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_WAYLAND)
     target_link_libraries(wma PRIVATE PkgConfig::WAYLAND)
+
+    # Expose the build-time generated protocol headers to the compiler and
+    # install them alongside the other public headers.
+    target_include_directories(wma PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+    )
+    install(
+        DIRECTORY "${WMA_WAYLAND_PROTO_DIR}/"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/wma/backends/wayland/protocols"
+        FILES_MATCHING PATTERN "*.h"
+    )
 endif()
