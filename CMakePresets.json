@@ -8,7 +8,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "WMA_BUILD_TESTS": "OFF",
-        "CMAKE_FIND_ROOT_PATH_MODE_PACKAGE": "BOTH"
+        "CMAKE_FIND_ROOT_PATH_MODE_PACKAGE": "BOTH",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF"
       }
     },
     {
