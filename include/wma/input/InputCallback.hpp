@@ -1,8 +1,9 @@
 #ifndef WMA_INPUT_INPUT_CALLBACK_HPP
 #define WMA_INPUT_INPUT_CALLBACK_HPP
 
-#include <functional>
 #include <memory>
+
+#include "wma/core/Types.hpp"
 
 namespace wma {
 
@@ -32,7 +33,7 @@ struct InputCallback {
     // Wraps any callable (including move-only capturing lambdas) into the
     // fast fn+data representation. Uses std::move_only_function to avoid
     // requiring copyability of the callable.
-    static InputCallback from(std::move_only_function<void()> callback);
+    static InputCallback from(wma::move_only_function<void()> callback);
 };
 
 } // namespace wma

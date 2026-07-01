@@ -15,7 +15,7 @@ class KeyAction {
 public:
     // Accepting std::move_only_function lets users pass any callable — plain
     // lambdas, capturing lambdas, move-only closures, or nullptr.
-    using Callback = std::move_only_function<void()>;
+    using Callback = wma::move_only_function<void()>;
 
     constexpr KeyAction() = default;
 
