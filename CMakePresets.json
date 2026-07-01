@@ -15,9 +15,9 @@
       "name": "linux",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/linux",
-      "installDir": "$env{LOCAL_PREFIX}",
+      "installDir": "$env{LOCAL_PREFIX}/linux",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "/usr/local/linux"
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/linux"
       }
     },
     {
