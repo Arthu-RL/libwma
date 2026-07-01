@@ -1,3 +1,5 @@
+find_package(ink REQUIRED)
+
 # Backend options — desktop-only, automatically disabled on cross-compile targets.
 option(WMA_ENABLE_SDL     "Enable SDL3 backend"    OFF)
 option(WMA_ENABLE_GLFW    "Enable GLFW backend"    OFF)

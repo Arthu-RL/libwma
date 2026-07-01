@@ -52,6 +52,8 @@ target_compile_options(wma PRIVATE
     >
 )
 
+target_link_libraries(wma PUBLIC ink::ink)
+
 # Backend compile definitions and link libraries
 if(WMA_ENABLE_SDL)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_SDL)
