@@ -1,4 +1,4 @@
-find_package(ink REQUIRED)
+find_package(ink REQUIRED CONFIG)
 
 # Backend options — desktop-only, automatically disabled on cross-compile targets.
 option(WMA_ENABLE_SDL     "Enable SDL3 backend"    OFF)
