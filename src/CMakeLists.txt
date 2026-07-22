@@ -1,6 +1,8 @@
+# Public headers ship both .hpp and .h (Keys.h is a .h) — glob both.
 file(GLOB_RECURSE WMA_HEADERS
     CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/include/*.hpp
+    ${PROJECT_SOURCE_DIR}/include/*.h
 )
 
 file(GLOB_RECURSE WMA_SOURCES
@@ -16,12 +18,24 @@ foreach(_backend SDL GLFW X11 WAYLAND)
         file(GLOB_RECURSE _disabled CONFIGURE_DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/backends/${_lower}/*.cpp"
         )
-        list(REMOVE_ITEM WMA_SOURCES ${_disabled})
+        if(_disabled)
+            list(REMOVE_ITEM WMA_SOURCES ${_disabled})
+        endif()
     endif()
 endforeach()
 
-add_library(wma STATIC)
+set(WMA_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+set(WMA_HAS_GLFW    ${WMA_ENABLE_GLFW})
+set(WMA_HAS_SDL     ${WMA_ENABLE_SDL})
+set(WMA_HAS_X11     ${WMA_ENABLE_X11})
+set(WMA_HAS_WAYLAND ${WMA_ENABLE_WAYLAND})
+configure_file(
+    "${PROJECT_SOURCE_DIR}/include/wma/core/BuildConfig.hpp.in"
+    "${WMA_GENERATED_DIR}/wma/core/BuildConfig.hpp"
+    @ONLY
+)
 
+add_library(wma STATIC)
 add_library(wma::wma ALIAS wma)
 
 target_sources(wma
@@ -35,11 +49,19 @@ target_sources(wma
             ${PROJECT_SOURCE_DIR}/include
         FILES
             ${WMA_HEADERS}
+
+        FILE_SET generated_headers
+        TYPE HEADERS
+        BASE_DIRS
+            ${WMA_GENERATED_DIR}
+        FILES
+            "${WMA_GENERATED_DIR}/wma/core/BuildConfig.hpp"
 )
 
 target_include_directories(wma
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${WMA_GENERATED_DIR}>
         $<INSTALL_INTERFACE:include>
 )
 
@@ -66,7 +88,6 @@ target_compile_options(wma PRIVATE
 
 target_link_libraries(wma PUBLIC ink::ink)
 
-# Backend compile definitions and link libraries
 if(WMA_ENABLE_SDL)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_SDL)
     target_link_libraries(wma PRIVATE SDL3::SDL3)
@@ -80,11 +101,24 @@ endif()
 if(WMA_ENABLE_X11)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_X11)
     target_link_libraries(wma PRIVATE X11::X11)
+
+    # OpenGL on X11 is done through GLX. Optional: if libGL/GLX is unavailable the
+    # backend still builds and simply reports OpenGL as unsupported at runtime.
+    if(WMA_ENABLE_X11_GL)
+        target_link_libraries(wma PRIVATE OpenGL::GLX)
+        target_compile_definitions(wma PRIVATE WMA_X11_HAS_GL)
+    endif()
 endif()
 
 if(WMA_ENABLE_WAYLAND)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_WAYLAND)
     target_link_libraries(wma PRIVATE PkgConfig::WAYLAND)
+
+    # OpenGL on Wayland is done through EGL + wayland-egl (optional, as above).
+    if(WMA_ENABLE_WAYLAND_GL)
+        target_link_libraries(wma PRIVATE PkgConfig::WAYLAND_EGL)
+        target_compile_definitions(wma PRIVATE WMA_WAYLAND_HAS_GL)
+    endif()
 
     # Expose the build-time generated protocol headers to the compiler and
     # install them alongside the other public headers.

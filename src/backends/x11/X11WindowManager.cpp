@@ -1,8 +1,13 @@
 #ifdef WMA_ENABLE_X11
 #include "wma/backends/x11/X11WindowManager.hpp"
-#include "wma/core/FrameTimer.hpp"
+#include "wma/exceptions/WMAException.hpp"
 
-#include <ink/InkAssert.h>
+#include <cstdlib>
+#include <cstring>
+
+#ifdef WMA_X11_HAS_GL
+#include <GL/glx.h>
+#endif
 
 namespace wma {
 
@@ -12,6 +17,10 @@ X11WindowManager::X11WindowManager(const WindowDetails& windowDetails,
     , window_(0)
     , colormap_(0)
     , wmDeleteWindow_(0)
+    , gc_(nullptr)
+    , image_(nullptr)
+    , glContext_(nullptr)
+    , fbConfig_(nullptr)
     , windowDetails_(windowDetails)
     , windowFlags_{}
     , graphicsAPI_(graphicsAPI)
@@ -30,6 +39,10 @@ X11WindowManager::X11WindowManager(X11WindowManager&& other) noexcept
     , window_(other.window_)
     , colormap_(other.colormap_)
     , wmDeleteWindow_(other.wmDeleteWindow_)
+    , gc_(other.gc_)
+    , image_(other.image_)
+    , glContext_(other.glContext_)
+    , fbConfig_(other.fbConfig_)
     , windowDetails_(other.windowDetails_)
     , windowFlags_(other.windowFlags_)
     , graphicsAPI_(other.graphicsAPI_)
@@ -39,6 +52,10 @@ X11WindowManager::X11WindowManager(X11WindowManager&& other) noexcept
 {
     other.display_ = nullptr;
     other.window_ = 0;
+    other.colormap_ = 0;
+    other.gc_ = nullptr;
+    other.image_ = nullptr;
+    other.glContext_ = nullptr;
 }
 
 X11WindowManager& X11WindowManager::operator=(X11WindowManager&& other) noexcept {
@@ -48,6 +65,10 @@ X11WindowManager& X11WindowManager::operator=(X11WindowManager&& other) noexcept
         window_ = other.window_;
         colormap_ = other.colormap_;
         wmDeleteWindow_ = other.wmDeleteWindow_;
+        gc_ = other.gc_;
+        image_ = other.image_;
+        glContext_ = other.glContext_;
+        fbConfig_ = other.fbConfig_;
         windowDetails_ = other.windowDetails_;
         windowFlags_ = other.windowFlags_;
         graphicsAPI_ = other.graphicsAPI_;
@@ -56,6 +77,10 @@ X11WindowManager& X11WindowManager::operator=(X11WindowManager&& other) noexcept
         windowShouldClose_ = other.windowShouldClose_;
         other.display_ = nullptr;
         other.window_ = 0;
+        other.colormap_ = 0;
+        other.gc_ = nullptr;
+        other.image_ = nullptr;
+        other.glContext_ = nullptr;
     }
     return *this;
 }
@@ -63,29 +88,85 @@ X11WindowManager& X11WindowManager::operator=(X11WindowManager&& other) noexcept
 void X11WindowManager::createWindow(const char* windowName)
 {
     display_ = XOpenDisplay(nullptr);
-    INK_ASSERT_MSG(display_ != nullptr, "Failed to open X11 display.");
+    if (!display_) {
+        throw WindowException("Failed to open X11 display (is DISPLAY set?)");
+    }
 
-    int screen = DefaultScreen(display_);
+    const int screen = DefaultScreen(display_);
     Window rootWindow = RootWindow(display_, screen);
 
-    XSetWindowAttributes windowAttributes;
+    Visual* visual = DefaultVisual(display_, screen);
+    int depth = DefaultDepth(display_, screen);
+
+#ifdef WMA_X11_HAS_GL
+    if (graphicsAPI_ == GraphicsAPI::OpenGL) 
+    {
+        static int fbAttribs[] = {
+            GLX_X_RENDERABLE,  True,
+            GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+            GLX_RENDER_TYPE,   GLX_RGBA_BIT,
+            GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+            GLX_RED_SIZE,      8,
+            GLX_GREEN_SIZE,    8,
+            GLX_BLUE_SIZE,     8,
+            GLX_ALPHA_SIZE,    8,
+            GLX_DEPTH_SIZE,    24,
+            GLX_STENCIL_SIZE,  8,
+            GLX_DOUBLEBUFFER,  True,
+            None
+        };
+        int fbCount = 0;
+        GLXFBConfig* fbc = glXChooseFBConfig(display_, screen, fbAttribs, &fbCount);
+        if (!fbc || fbCount == 0) 
+        {
+            XCloseDisplay(display_);
+            display_ = nullptr;
+            throw GraphicsException("No suitable GLX framebuffer configuration found");
+        }
+        fbConfig_ = fbc[0];
+        XVisualInfo* vi = glXGetVisualFromFBConfig(display_, static_cast<GLXFBConfig>(fbConfig_));
+        if (!vi) 
+        {
+            XFree(fbc);
+            XCloseDisplay(display_);
+            display_ = nullptr;
+            throw GraphicsException("glXGetVisualFromFBConfig returned no visual");
+        }
+        visual = vi->visual;
+        depth = vi->depth;
+        colormap_ = XCreateColormap(display_, rootWindow, visual, AllocNone);
+        XFree(vi);
+        XFree(fbc);
+    }
+#endif
+
+    XSetWindowAttributes windowAttributes{};
     windowAttributes.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask |
                                   ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
                                   StructureNotifyMask;
+    unsigned long valueMask = CWEventMask;
+    if (colormap_) {
+        windowAttributes.colormap = colormap_;
+        windowAttributes.background_pixel = 0;
+        windowAttributes.border_pixel = 0;
+        valueMask |= CWColormap | CWBackPixel | CWBorderPixel;
+    }
 
     window_ = XCreateWindow(display_, rootWindow,
                             100, 100,
                             windowDetails_.width, windowDetails_.height,
-                            1,
-                            DefaultDepth(display_, screen),
+                            0,
+                            depth,
                             InputOutput,
-                            DefaultVisual(display_, screen),
-                            CWEventMask,
+                            visual,
+                            valueMask,
                             &windowAttributes);
 
-    if (!window_) {
+    if (!window_) 
+    {
         XCloseDisplay(display_);
-        throw std::runtime_error("Failed to create X11 window.");
+        display_ = nullptr;
+        throw WindowException("Failed to create X11 window");
     }
 
     XStoreName(display_, window_, windowName);
@@ -95,23 +176,83 @@ void X11WindowManager::createWindow(const char* windowName)
 
     XMapWindow(display_, window_);
     XFlush(display_);
-}
 
-void X11WindowManager::process(std::function<void()>&& actions)
-{
-    FrameTimer timer(windowFlags_);
-    timer.setTargetFPS(windowDetails_.targetFPS);
+    keyboardListener_->initialize(display_);
+    mouseListener_->initialize(display_, window_);
 
-    while (!windowShouldClose_) {
-        timer.updateDeltaTime();
-        processEvents();
-        actions();
-        timer.limitFrameRate();
+    if (graphicsAPI_ == GraphicsAPI::OpenGL) 
+    {
+        initGL();
+    } 
+    else if (graphicsAPI_ == GraphicsAPI::CPU) 
+    {
+        gc_ = XCreateGC(display_, window_, 0, nullptr);
+        allocateSoftwareImage(windowDetails_.width, windowDetails_.height);
     }
 }
 
-void X11WindowManager::processEvents()
+void X11WindowManager::initGL()
 {
+#ifdef WMA_X11_HAS_GL
+    glContext_ = glXCreateNewContext(display_, static_cast<GLXFBConfig>(fbConfig_),
+                                     GLX_RGBA_TYPE, nullptr, True);
+    if (!glContext_)
+        throw GraphicsException("Failed to create GLX (OpenGL) context");
+
+    glXMakeCurrent(display_, window_, static_cast<GLXContext>(glContext_));
+
+    // Best-effort vsync via GLX_EXT_swap_control.
+    using PFNGLXSWAPINTERVALEXTPROC = void (*)(Display*, GLXDrawable, int);
+    auto swapIntervalEXT = reinterpret_cast<PFNGLXSWAPINTERVALEXTPROC>(glXGetProcAddressARB(reinterpret_cast<const GLubyte*>("glXSwapIntervalEXT")));
+    
+    if (swapIntervalEXT)
+        swapIntervalEXT(display_, window_, windowDetails_.vsync ? 1 : 0);
+
+#else
+    throw GraphicsException(
+        "OpenGL requested on the X11 backend but WMA was built without GLX support");
+#endif
+}
+
+void X11WindowManager::allocateSoftwareImage(i32 width, i32 height)
+{
+    destroySoftwareImage();
+    if (width <= 0 || height <= 0) 
+        return;
+
+    const int screen = DefaultScreen(display_);
+    Visual* visual = DefaultVisual(display_, screen);
+    const int depth = DefaultDepth(display_, screen);
+
+    // 32-bit ZPixmap buffer owned by the XImage (XDestroyImage frees data).
+    auto* buffer = static_cast<char*>(std::malloc(static_cast<usize>(width) * height * 4));
+    if (!buffer) 
+        throw WMAException("Out of memory allocating software framebuffer");
+    std::memset(buffer, 0, static_cast<usize>(width) * height * 4);
+
+    image_ = XCreateImage(display_, visual, depth, ZPixmap, 0,
+                          buffer, width, height, 32, 0);
+    if (!image_) 
+    {
+        std::free(buffer);
+        throw WMAException("Failed to create X11 software image");
+    }
+}
+
+void X11WindowManager::destroySoftwareImage()
+{
+    if (image_) 
+    {
+        XDestroyImage(image_); // also frees image_->data
+        image_ = nullptr;
+    }
+}
+
+void X11WindowManager::pollEvents()
+{
+    if (!display_) 
+        return;
+
     while (XPending(display_) > 0) {
         XEvent event;
         XNextEvent(display_, &event);
@@ -140,20 +281,65 @@ void X11WindowManager::processEvents()
     }
 }
 
+void X11WindowManager::swapBuffers()
+{
+#ifdef WMA_X11_HAS_GL
+    if (graphicsAPI_ == GraphicsAPI::OpenGL && display_ && window_)
+        glXSwapBuffers(display_, window_);
+#endif
+}
+
 void X11WindowManager::handleWindowEvent(const XEvent* event)
 {
     if (event->type == ConfigureNotify) {
-        XConfigureEvent xce = event->xconfigure;
+        const XConfigureEvent& xce = event->xconfigure;
         if (xce.width != windowDetails_.width || xce.height != windowDetails_.height) {
             windowDetails_.width = xce.width;
             windowDetails_.height = xce.height;
             windowFlags_.resized = true;
+            if (graphicsAPI_ == GraphicsAPI::CPU && display_)
+                allocateSoftwareImage(xce.width, xce.height);
+
         }
     }
 }
 
 void* X11WindowManager::getWindowInstance() {
     return reinterpret_cast<void*>(window_);
+}
+
+void* X11WindowManager::getNativeDisplayHandle() const noexcept {
+    return static_cast<void*>(display_);
+}
+
+void* X11WindowManager::getGLProcAddress(const char* name) const {
+#ifdef WMA_X11_HAS_GL
+    if (graphicsAPI_ != GraphicsAPI::OpenGL) 
+        return nullptr;
+    return reinterpret_cast<void*>(glXGetProcAddressARB(reinterpret_cast<const GLubyte*>(name)));
+#else
+    (void)name;
+    return nullptr;
+#endif
+}
+
+SoftwareFramebuffer X11WindowManager::lockFramebuffer() {
+    if (graphicsAPI_ != GraphicsAPI::CPU || !image_) 
+        return {};
+    return SoftwareFramebuffer{
+        image_->data,
+        windowDetails_.width,
+        windowDetails_.height,
+        image_->bytes_per_line
+    };
+}
+
+void X11WindowManager::presentFramebuffer() {
+    if (!image_ || !gc_ || !display_ || !window_) return;
+    XPutImage(display_, window_, gc_, image_, 0, 0, 0, 0,
+              static_cast<unsigned>(image_->width),
+              static_cast<unsigned>(image_->height));
+    XFlush(display_);
 }
 
 const std::vector<const char*> X11WindowManager::getVulkanExtensions() const {
@@ -170,16 +356,38 @@ GraphicsAPI X11WindowManager::getGraphicsAPI() const { return graphicsAPI_; }
 
 WmaCode X11WindowManager::destroy()
 {
+    windowShouldClose_ = true;
+    destroySoftwareImage();
+
     if (display_) {
-        if (window_) {
+#ifdef WMA_X11_HAS_GL
+        if (glContext_) 
+        {
+            glXMakeCurrent(display_, None, nullptr);
+            glXDestroyContext(display_, static_cast<GLXContext>(glContext_));
+            glContext_ = nullptr;
+        }
+#endif
+        if (gc_) 
+        {
+            XFreeGC(display_, gc_);
+            gc_ = nullptr;
+        }
+        if (window_) 
+        {
             XDestroyWindow(display_, window_);
             window_ = 0;
+        }
+        if (colormap_) 
+        {
+            XFreeColormap(display_, colormap_);
+            colormap_ = 0;
         }
         XCloseDisplay(display_);
         display_ = nullptr;
     }
-    return WmaCode::OK;
+    return WmaCode::Ok;
 }
 
 } // namespace wma
-#endif
+#endif // WMA_ENABLE_X11

@@ -5,6 +5,9 @@ install(
     FILE_SET public_headers
     DESTINATION include
 
+    FILE_SET generated_headers
+    DESTINATION include
+
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
