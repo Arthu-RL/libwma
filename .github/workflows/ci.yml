@@ -83,7 +83,7 @@ jobs:
           source /opt/emsdk/emsdk_env.sh
           emcmake cmake -S . -B build-wasm \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=/usr/local/wasm-deps \
+            -DCMAKE_PREFIX_PATH=/usr/local/wasm \
             -DWMA_BUILD_EXAMPLES=ON \
             -DWMA_BUILD_TESTS=OFF
 
@@ -115,7 +115,7 @@ jobs:
           -DANDROID_PLATFORM=android-29
           -DANDROID_STL=c++_shared
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_PREFIX_PATH=/usr/local/android-deps
+          -DCMAKE_PREFIX_PATH=/usr/local/android
           -DWMA_BUILD_EXAMPLES=ON
           -DWMA_BUILD_TESTS=OFF
 
