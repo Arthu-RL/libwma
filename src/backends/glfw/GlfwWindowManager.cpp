@@ -101,9 +101,12 @@ namespace {
                 glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
                 break;
             case GraphicsAPI::CPU:
-                //! No client API; the application supplies its own presentation.
-                glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-                break;
+                //! GLFW has no per-OS software-blit path (unlike SDL3/X11/Wayland,
+                //! which implement lockFramebuffer()/presentFramebuffer() for real).
+                //! Fail fast instead of opening a window nothing can draw into.
+                throw GraphicsException(
+                    "GLFW has no software rendering path; use SDL3/X11/Wayland for "
+                    "CPU rendering, or OpenGL/Vulkan with GLFW");
             default:
                 throw GraphicsException("Unsupported graphics API for GLFW");
         }

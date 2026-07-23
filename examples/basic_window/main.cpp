@@ -191,27 +191,27 @@ int main(int argc, char** argv) {
         // clearAllActions(context): same scratch-context pattern as above.
         {
             const auto scratch = mouse.createContext();
-            mouse.addButtonAction(wma::MouseButton::WMAButton4, wma::MouseAction({[](){}}), scratch);
+            mouse.addButtonAction(wma::MouseButton::WMAButton4, wma::MouseAction{[](){}}, scratch);
             INK_LOG << "  scratch mouse binding before clear: " << mouse.hasButtonAction(wma::MouseButton::WMAButton4, scratch);
             mouse.clearAllActions(scratch);
             INK_LOG << "  scratch mouse binding after clearAllActions: " << mouse.hasButtonAction(wma::MouseButton::WMAButton4, scratch);
         }
 
-        mouse.addButtonAction(wma::MouseButton::WMALeft, wma::MouseAction({
+        mouse.addButtonAction(wma::MouseButton::WMALeft, wma::MouseAction{
             []() { INK_LOG << "mouse left pressed"; },
             []() { INK_LOG << "mouse left released"; }
-        }));
+        });
 
-        mouse.addButtonAction(wma::MouseButton::WMARight, wma::MouseAction({
+        mouse.addButtonAction(wma::MouseButton::WMARight, wma::MouseAction{
             [&]() {
                 mouse.setCursorEnabled(!mouse.isCursorEnabled());
                 INK_LOG << "Cursor enabled: " << mouse.isCursorEnabled();
             },
             nullptr
-        }));
+        });
         INK_LOG << "  left button bound: " << mouse.hasButtonAction(wma::MouseButton::WMALeft);
 
-        mouse.setMoveAction(wma::MouseAction([&](const wma::WMAMousePosition& pos){
+        mouse.setMoveAction(wma::MouseAction{[&](const wma::WMAMousePosition& pos){
             // Throttled: per-pixel motion logging would flood the console
             // (especially the browser console on WASM).
             static unsigned long long moveEvents = 0;
@@ -219,14 +219,14 @@ int main(int argc, char** argv) {
                 INK_LOG << "mouse move " << pos.x << "," << pos.y
                         << " delta " << pos.deltaX << "," << pos.deltaY;
             }
-        }));
+        }});
 
-        mouse.setScrollAction(wma::MouseAction([&](const wma::WMAMouseScroll& offset){
+        mouse.setScrollAction(wma::MouseAction{[&](const wma::WMAMouseScroll& offset){
             const f64 newSensitivity = INK_MAX(0.1, mouse.getSensitivity() + offset.yOffset * 0.1);
             mouse.setSensitivity(newSensitivity);
             INK_LOG << "scroll " << offset.xOffset << "," << offset.yOffset
                     << " -> sensitivity " << mouse.getSensitivity();
-        }));
+        }});
 
         // Main loop
         unsigned long long frameCount = 0;

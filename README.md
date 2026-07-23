@@ -103,6 +103,23 @@ cmake -S libwma -B libwma/build \
 cmake --build libwma/build --target install
 ```
 
+Or use the `linux-debug`/`linux-release` presets directly — both build the
+example (`WMA_BUILD_EXAMPLES=ON`) with every backend enabled except that
+`linux-release` leaves GLFW off (see caveat below):
+`cmake --preset linux-release && cmake --build --preset linux-release`.
+On Windows, `windows-debug`/`windows-release` configure the same project with
+an MSVC-aware toolchain from a Developer Command Prompt (or any shell with
+`vcvarsall`/VS Build Tools on `PATH`) — `src/CMakeLists.txt` selects `/W4` +
+`/Od`/`/O2` automatically instead of the GCC/Clang `-Wall`/`-O3` flags.
+
+> Building the example with **both** `WMA_ENABLE_SDL=ON` and
+> `WMA_ENABLE_GLFW=ON` can fail at the link step on some distros: prebuilt
+> static `libSDL3.a` and `libglfw3.a` each vendor their own copy of the
+> `wp_fractional_scale_manager_v1` Wayland-protocol glue as a strong symbol,
+> which collides. This is a packaging issue in those two static libs, not a
+> wma bug — if you hit it, drop `-DWMA_ENABLE_GLFW=OFF` for the example build,
+> or link SDL3/GLFW as shared libraries instead.
+
 ### Android (SDL3) & Web (WASM, SDL3)
 
 The presets force SDL3 as the sole backend on these targets:
@@ -129,9 +146,15 @@ artifact (`.so` / `.html`+`.js`+`.wasm`) described in the table above.
 | `WMA_BUILD_EXAMPLES` | `OFF` | Build the example applications |
 | `WMA_BUILD_TESTS` | `OFF` | Build the test suite (if `tests/` is present) |
 | `WMA_ENABLE_LTO` | `ON` | Link-time optimization for Release |
-| `WMA_NATIVE_OPTIMIZE` | `OFF` | `-march=native` (non-portable; local builds only) |
+| `WMA_NATIVE_OPTIMIZE` | `OFF` | `-march=native` (non-portable; local builds only; no-op on MSVC) |
 
 > At least one backend must be enabled, otherwise `createWindowManager()` throws.
+
+> Wayland windows get **server-side decorations only** (titlebar/close/min/max),
+> requested via `xdg-decoration-unstable-v1` when the compositor advertises it
+> (KDE, Sway, other wlroots compositors). Compositors that don't — GNOME/Mutter
+> — fall back to a borderless surface; this library does not draw its own
+> client-side decorations.
 
 ### Consuming with CMake
 
@@ -179,13 +202,17 @@ wma::WindowDetails cfg {
 | Backend | Software (CPU) | OpenGL | Vulkan | Platforms |
 |---------|:--------------:|:------:|:------:|-----------|
 | **SDL3** | ✅ surface | ✅ context + swap | ✅ | Desktop, Android, WASM |
-| **GLFW** | ⚠️ window only | ✅ context + `getProcAddress` | ✅ | Desktop |
+| **GLFW** | ❌ throws² | ✅ context + `getProcAddress` | ✅ | Desktop |
 | **X11** | ✅ XImage | ✅ GLX¹ | ✅ (`xlib_surface`) | Linux |
 | **Wayland** | ✅ `wl_shm` | ✅ EGL¹ | ✅ (`wayland_surface`) | Linux |
 
 ¹ Requires GLX (X11) / EGL + `wayland-egl` (Wayland) at build time; otherwise
 OpenGL on that backend reports as unsupported and the rest still builds.
-GLFW's software mode creates a bare window — bring your own presentation.
+
+² GLFW has no per-OS software-blit path; `createWindow()` throws
+`GraphicsException` immediately for `GraphicsAPI::CPU` instead of opening a
+window nothing can draw into. Use SDL3/X11/Wayland for CPU rendering, or
+OpenGL/Vulkan with GLFW.
 
 ### Input contexts
 

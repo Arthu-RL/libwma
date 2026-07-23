@@ -71,20 +71,34 @@ target_compile_features(wma
 )
 
 target_compile_options(wma PRIVATE
-    $<$<CONFIG:Debug>:
-        -Wall
-        -Wextra
-        -g
-        -O0
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:
+        $<$<CONFIG:Debug>:
+            -Wall
+            -Wextra
+            -g
+            -O0
+        >
+
+        $<$<CONFIG:Release>:-O3>
+
+        $<$<AND:$<CONFIG:Release>,$<BOOL:${WMA_NATIVE_OPTIMIZE}>>:
+            -march=native
+            -mtune=native
+        >
     >
 
-    $<$<CONFIG:Release>:-O3>
-
-    $<$<AND:$<CONFIG:Release>,$<BOOL:${WMA_NATIVE_OPTIMIZE}>>:
-        -march=native
-        -mtune=native
+    $<$<CXX_COMPILER_ID:MSVC>:
+        /W4
+        $<$<CONFIG:Debug>:/Od>
+        $<$<CONFIG:Release>:/O2>
     >
 )
+
+# MSVC has no -march=native/-mtune=native equivalent, so WMA_NATIVE_OPTIMIZE
+# is a no-op there — flag it instead of silently ignoring the request.
+if(WMA_NATIVE_OPTIMIZE AND MSVC)
+    message(STATUS "[wma] WMA_NATIVE_OPTIMIZE has no effect on MSVC (no -march=native equivalent); ignoring.")
+endif()
 
 target_link_libraries(wma PUBLIC ink::ink)
 

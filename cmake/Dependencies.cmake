@@ -86,4 +86,17 @@ if(WMA_ENABLE_WAYLAND)
             "(exit code: ${_wl_scanner_result})"
         )
     endif()
+
+    execute_process(
+        COMMAND "${WAYLAND_SCANNER}" client-header
+            "${WAYLAND_PROTOCOLS_DATADIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml"
+            "${WMA_WAYLAND_PROTO_DIR}/xdg-decoration-unstable-v1-client-protocol.h"
+        RESULT_VARIABLE _wl_scanner_result
+    )
+    if(_wl_scanner_result)
+        message(FATAL_ERROR
+            "[wma] wayland-scanner failed to generate xdg-decoration-unstable-v1-client-protocol.h "
+            "(exit code: ${_wl_scanner_result})"
+        )
+    endif()
 endif()

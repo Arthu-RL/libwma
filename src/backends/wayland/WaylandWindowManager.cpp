@@ -67,6 +67,8 @@ WaylandWindowManager::WaylandWindowManager(const WindowDetails& windowDetails,
     , xdgWmBase_(nullptr)
     , xdgSurface_(nullptr)
     , xdgToplevel_(nullptr)
+    , xdgDecorationManager_(nullptr)
+    , xdgToplevelDecoration_(nullptr)
     , keyboard_(nullptr)
     , pointer_(nullptr)
     , shmBuffer_(nullptr)
@@ -103,6 +105,8 @@ WaylandWindowManager::WaylandWindowManager(WaylandWindowManager&& other) noexcep
     , xdgWmBase_(other.xdgWmBase_)
     , xdgSurface_(other.xdgSurface_)
     , xdgToplevel_(other.xdgToplevel_)
+    , xdgDecorationManager_(other.xdgDecorationManager_)
+    , xdgToplevelDecoration_(other.xdgToplevelDecoration_)
     , keyboard_(other.keyboard_)
     , pointer_(other.pointer_)
     , shmBuffer_(other.shmBuffer_)
@@ -131,6 +135,8 @@ WaylandWindowManager::WaylandWindowManager(WaylandWindowManager&& other) noexcep
     other.xdgWmBase_ = nullptr;
     other.xdgSurface_ = nullptr;
     other.xdgToplevel_ = nullptr;
+    other.xdgDecorationManager_ = nullptr;
+    other.xdgToplevelDecoration_ = nullptr;
     other.keyboard_ = nullptr;
     other.pointer_ = nullptr;
     other.shmBuffer_ = nullptr;
@@ -155,6 +161,8 @@ WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& oth
         xdgWmBase_ = other.xdgWmBase_;
         xdgSurface_ = other.xdgSurface_;
         xdgToplevel_ = other.xdgToplevel_;
+        xdgDecorationManager_ = other.xdgDecorationManager_;
+        xdgToplevelDecoration_ = other.xdgToplevelDecoration_;
         keyboard_ = other.keyboard_;
         pointer_ = other.pointer_;
         shmBuffer_ = other.shmBuffer_;
@@ -183,6 +191,8 @@ WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& oth
         other.xdgWmBase_ = nullptr;
         other.xdgSurface_ = nullptr;
         other.xdgToplevel_ = nullptr;
+        other.xdgDecorationManager_ = nullptr;
+        other.xdgToplevelDecoration_ = nullptr;
         other.keyboard_ = nullptr;
         other.pointer_ = nullptr;
         other.shmBuffer_ = nullptr;
@@ -222,6 +232,16 @@ void WaylandWindowManager::createWindow(const char* windowName)
 
     xdg_toplevel_set_title(xdgToplevel_, windowName);
     xdg_toplevel_set_app_id(xdgToplevel_, "wma_app");
+
+    //! Server-side decorations only: if the compositor doesn't advertise
+    //1 zxdg_decoration_manager_v1 (e.g. GNOME/Mutter), the surface stays
+    //! borderless — this library does not implement client-side decorations.
+    if (xdgDecorationManager_) {
+        xdgToplevelDecoration_ = zxdg_decoration_manager_v1_get_toplevel_decoration(
+            xdgDecorationManager_, xdgToplevel_);
+        zxdg_toplevel_decoration_v1_set_mode(
+            xdgToplevelDecoration_, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+    }
 
     // Initial commit, then block until the compositor configures the surface.
     wl_surface_commit(surface_);
@@ -498,12 +518,22 @@ WmaCode WaylandWindowManager::destroy()
         shm_ = nullptr;
     }
 
-    if (xdgToplevel_) 
+    if (xdgToplevelDecoration_)
+    {
+        zxdg_toplevel_decoration_v1_destroy(xdgToplevelDecoration_);
+        xdgToplevelDecoration_ = nullptr;
+    }
+    if (xdgDecorationManager_)
+    {
+        zxdg_decoration_manager_v1_destroy(xdgDecorationManager_);
+        xdgDecorationManager_ = nullptr;
+    }
+    if (xdgToplevel_)
     {
         xdg_toplevel_destroy(xdgToplevel_);
         xdgToplevel_ = nullptr;
     }
-    if (xdgSurface_) 
+    if (xdgSurface_)
     {
         xdg_surface_destroy(xdgSurface_);
         xdgSurface_ = nullptr;
@@ -557,10 +587,15 @@ void WaylandWindowManager::handleRegistryGlobal(void* data, wl_registry* registr
         manager->xdgWmBase_ = static_cast<xdg_wm_base*>(wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
         xdg_wm_base_add_listener(manager->xdgWmBase_, &xdgWmBaseListener_, manager);
     } 
-    else if (strcmp(interface, wl_seat_interface.name) == 0) 
+    else if (strcmp(interface, wl_seat_interface.name) == 0)
     {
         manager->seat_ = static_cast<wl_seat*>(wl_registry_bind(registry, name, &wl_seat_interface, 1));
         wl_seat_add_listener(manager->seat_, &seatListener_, manager);
+    }
+    else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0)
+    {
+        manager->xdgDecorationManager_ = static_cast<zxdg_decoration_manager_v1*>(
+            wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1));
     }
 }
 

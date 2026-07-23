@@ -6,6 +6,7 @@
 #include "WaylandMouseListener.hpp"
 #include "WaylandKeyboardListener.hpp"
 #include "wma/backends/wayland/protocols/xdg-shell-client-protocol.h"
+#include "wma/backends/wayland/protocols/xdg-decoration-unstable-v1-client-protocol.h"
 #include "wma/managers/IWindowManager.hpp"
 
 namespace wma {
@@ -53,6 +54,11 @@ private:
     xdg_wm_base* xdgWmBase_;
     xdg_surface* xdgSurface_;
     xdg_toplevel* xdgToplevel_;
+
+    //! xdg-decoration: requests server-side decorations when the compositor
+    //! advertises the global; silently absent under GNOME/Mutter.
+    zxdg_decoration_manager_v1* xdgDecorationManager_;
+    zxdg_toplevel_decoration_v1* xdgToplevelDecoration_;
 
     wl_keyboard* keyboard_;
     wl_pointer* pointer_;
