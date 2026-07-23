@@ -1,6 +1,5 @@
 #include "wma/backends/sdl/SdlWindowManager.hpp"
 #include "wma/exceptions/WMAException.hpp"
-#include "wma/core/FrameTimer.hpp"
 
 #include <ink/Inkogger.h>
 
@@ -9,16 +8,27 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
+#include <atomic>
+
 namespace wma {
+
+//! SDL_Init/SDL_Quit are process-global. Reference-count them so multiple windows
+//! can coexist and moving/destroying one never tears SDL down for a live one.
+namespace {
+    std::atomic<int> g_sdlRefCount{0};
+}
 
     SdlWindowManager::SdlWindowManager(const WindowDetails& windowDetails, GraphicsAPI graphicsAPI)
         : window_(nullptr)
+        , glContext_(nullptr)
+        , windowSurface_(nullptr)
         , windowDetails_(windowDetails)
         , windowFlags_{}
         , graphicsAPI_(graphicsAPI)
         , keyboardListener_(std::make_unique<SDLKeyboardListener>())
         , mouseListener_(std::make_unique<SDLMouseListener>())
         , windowShouldClose_(false)
+        , ownsSubsystem_(false)
     {
         initializeSDL();
     }
@@ -29,27 +39,39 @@ namespace wma {
 
     SdlWindowManager::SdlWindowManager(SdlWindowManager&& other) noexcept
         : window_(other.window_)
+        , glContext_(other.glContext_)
+        , windowSurface_(other.windowSurface_)
         , windowDetails_(std::move(other.windowDetails_))
         , windowFlags_(std::move(other.windowFlags_))
         , graphicsAPI_(other.graphicsAPI_)
         , keyboardListener_(std::move(other.keyboardListener_))
         , mouseListener_(std::move(other.mouseListener_))
         , windowShouldClose_(other.windowShouldClose_)
+        , ownsSubsystem_(other.ownsSubsystem_)
     {
         other.window_ = nullptr;
+        other.glContext_ = nullptr;
+        other.windowSurface_ = nullptr;
+        other.ownsSubsystem_ = false;
     }
 
     SdlWindowManager& SdlWindowManager::operator=(SdlWindowManager&& other) noexcept {
         if (this != &other) {
             destroy();
             window_ = other.window_;
+            glContext_ = other.glContext_;
+            windowSurface_ = other.windowSurface_;
             windowDetails_ = std::move(other.windowDetails_);
             windowFlags_ = std::move(other.windowFlags_);
             graphicsAPI_ = other.graphicsAPI_;
             keyboardListener_ = std::move(other.keyboardListener_);
             mouseListener_ = std::move(other.mouseListener_);
             windowShouldClose_ = other.windowShouldClose_;
+            ownsSubsystem_ = other.ownsSubsystem_;
             other.window_ = nullptr;
+            other.glContext_ = nullptr;
+            other.windowSurface_ = nullptr;
+            other.ownsSubsystem_ = false;
         }
         return *this;
     }
@@ -83,11 +105,13 @@ namespace wma {
         }
 
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
-            auto context = SDL_GL_CreateContext(window_);
-            if (!context) {
+            glContext_ = SDL_GL_CreateContext(window_);
+            if (!glContext_) {
                 SDL_DestroyWindow(window_);
+                window_ = nullptr;
                 throw GraphicsException("Failed to create OpenGL context: " + std::string(SDL_GetError()));
             }
+            SDL_GL_MakeCurrent(window_, static_cast<SDL_GLContext>(glContext_));
             SDL_GL_SetSwapInterval(windowDetails_.vsync ? 1 : 0);
         }
 
@@ -96,47 +120,7 @@ namespace wma {
         INK_LOG << "SDL window created: " << windowName;
     }
 
-    void SdlWindowManager::process(std::function<void()>&& actions) {
-        FrameTimer timer(windowFlags_);
-        timer.setTargetFPS(windowDetails_.targetFPS);
-
-        while (!windowShouldClose_) {
-            timer.updateDeltaTime();
-            processEvents();
-            actions();
-
-            if (graphicsAPI_ == GraphicsAPI::OpenGL) {
-                SDL_GL_SwapWindow(window_);
-            }
-            timer.limitFrameRate();
-        }
-    }
-
-    void* SdlWindowManager::getWindowInstance() { return window_; }
-
-    u64 SdlWindowManager::getSDLWindowFlags() const {
-        return window_ ? SDL_GetWindowFlags(window_) : 0;
-    }
-
-    WindowFlags* SdlWindowManager::getWindowFlags() noexcept { return &windowFlags_; }
-    const WindowDetails* SdlWindowManager::getWindowDetails() noexcept { return &windowDetails_; }
-
-    const std::vector<const char*> SdlWindowManager::getVulkanExtensions() const {
-        u32 extensionCount = 0;
-        const char* const* extNames = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
-        if (!extNames) {
-            throw GraphicsException("Failed to get Vulkan extensions: " + std::string(SDL_GetError()));
-        }
-        return std::vector<const char*>(extNames, extNames + extensionCount);
-    }
-
-    KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
-    MouseListener& SdlWindowManager::getMouseListener() noexcept { return *mouseListener_; }
-    bool SdlWindowManager::shouldClose() const { return windowShouldClose_; }
-    WindowBackend SdlWindowManager::getBackendType() const { return WindowBackend::SDL3; }
-    GraphicsAPI SdlWindowManager::getGraphicsAPI() const { return graphicsAPI_; }
-
-    void SdlWindowManager::processEvents() {
+    void SdlWindowManager::pollEvents() {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -166,8 +150,71 @@ namespace wma {
         }
     }
 
+    void SdlWindowManager::swapBuffers() {
+        if (graphicsAPI_ == GraphicsAPI::OpenGL && window_)
+            SDL_GL_SwapWindow(window_);
+    }
+
+    void* SdlWindowManager::getWindowInstance() { return window_; }
+
+    void* SdlWindowManager::getNativeDisplayHandle() const noexcept { return nullptr; }
+
+    void* SdlWindowManager::getGLProcAddress(const char* name) const {
+        if (graphicsAPI_ != GraphicsAPI::OpenGL) 
+            return nullptr;
+        return reinterpret_cast<void*>(SDL_GL_GetProcAddress(name));
+    }
+
+    SoftwareFramebuffer SdlWindowManager::lockFramebuffer() {
+        if (graphicsAPI_ != GraphicsAPI::CPU || !window_) 
+            return {};
+
+        SDL_Surface* surface = SDL_GetWindowSurface(window_);
+        if (!surface) 
+            return {};
+
+        windowSurface_ = surface;
+        if (SDL_MUSTLOCK(surface)) 
+            SDL_LockSurface(surface);
+
+        return SoftwareFramebuffer{ surface->pixels, surface->w, surface->h, surface->pitch };
+    }
+
+    void SdlWindowManager::presentFramebuffer() {
+        if (!windowSurface_ || !window_) return;
+        auto* surface = static_cast<SDL_Surface*>(windowSurface_);
+        if (SDL_MUSTLOCK(surface)) SDL_UnlockSurface(surface);
+        SDL_UpdateWindowSurface(window_);
+        windowSurface_ = nullptr;
+    }
+
+    u64 SdlWindowManager::getSDLWindowFlags() const {
+        return window_ ? SDL_GetWindowFlags(window_) : 0;
+    }
+
+    WindowFlags* SdlWindowManager::getWindowFlags() noexcept { return &windowFlags_; }
+    const WindowDetails* SdlWindowManager::getWindowDetails() noexcept { return &windowDetails_; }
+
+    const std::vector<const char*> SdlWindowManager::getVulkanExtensions() const 
+    {
+        u32 extensionCount = 0;
+        const char* const* extNames = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+
+        if (!extNames)
+            throw GraphicsException("Failed to get Vulkan extensions: " + std::string(SDL_GetError()));
+
+        return std::vector<const char*>(extNames, extNames + extensionCount);
+    }
+
+    KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
+    MouseListener& SdlWindowManager::getMouseListener() noexcept { return *mouseListener_; }
+    bool SdlWindowManager::shouldClose() const { return windowShouldClose_; }
+    WindowBackend SdlWindowManager::getBackendType() const { return WindowBackend::SDL3; }
+    GraphicsAPI SdlWindowManager::getGraphicsAPI() const { return graphicsAPI_; }
+
     void SdlWindowManager::handleWindowEvent(const SDL_Event* event) {
-        switch (event->type) {
+        switch (event->type) 
+        {
             case SDL_EVENT_WINDOW_RESIZED:
                 windowDetails_.width = event->window.data1;
                 windowDetails_.height = event->window.data2;
@@ -191,10 +238,18 @@ namespace wma {
     }
 
     void SdlWindowManager::initializeSDL() {
-        if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
-            throw WMAException("Failed to initialize SDL: " + std::string(SDL_GetError()));
+        if (g_sdlRefCount.fetch_add(1, std::memory_order_acq_rel) == 0)
+        {
+            if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) 
+            {
+                g_sdlRefCount.fetch_sub(1, std::memory_order_acq_rel);
+                throw WMAException("Failed to initialize SDL: " + std::string(SDL_GetError()));
+            }
         }
-        if (graphicsAPI_ == GraphicsAPI::OpenGL) {
+        ownsSubsystem_ = true;
+
+        if (graphicsAPI_ == GraphicsAPI::OpenGL) 
+        {
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -202,8 +257,15 @@ namespace wma {
             SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
             SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
         }
-        if (graphicsAPI_ == GraphicsAPI::Vulkan) {
-            if (!SDL_Vulkan_LoadLibrary(nullptr)) {
+
+        if (graphicsAPI_ == GraphicsAPI::Vulkan)
+        {
+            if (!SDL_Vulkan_LoadLibrary(nullptr))
+            {
+                if (ownsSubsystem_ && g_sdlRefCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                    SDL_Quit();
+
+                ownsSubsystem_ = false;
                 throw GraphicsException("Failed to load Vulkan library: " + std::string(SDL_GetError()));
             }
         }
@@ -212,15 +274,29 @@ namespace wma {
 
     WmaCode SdlWindowManager::destroy() {
         windowShouldClose_ = true;
-        if (graphicsAPI_ == GraphicsAPI::OpenGL) {
-            SDL_GL_DestroyContext(SDL_GL_GetCurrentContext());
+
+        if (glContext_)
+        {
+            SDL_GL_DestroyContext(static_cast<SDL_GLContext>(glContext_));
+            glContext_ = nullptr;
         }
-        if (window_) {
+
+        if (graphicsAPI_ == GraphicsAPI::Vulkan && ownsSubsystem_)
+            SDL_Vulkan_UnloadLibrary();
+
+        if (window_)
+        {
             SDL_DestroyWindow(window_);
             window_ = nullptr;
         }
-        SDL_Quit();
-        return WmaCode::OK;
+
+        if (ownsSubsystem_)
+        {
+            ownsSubsystem_ = false;
+            if (g_sdlRefCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                SDL_Quit();
+        }
+        return WmaCode::Ok;
     }
 
 } // namespace wma

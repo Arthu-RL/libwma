@@ -25,8 +25,13 @@ namespace wma {
         SdlWindowManager& operator=(SdlWindowManager&&) noexcept;
 
         void createWindow(const char* windowName) override;
-        void process(std::function<void()>&& actions) override;
+        void pollEvents() override;
+        void swapBuffers() override;
         void* getWindowInstance() override;
+        void* getNativeDisplayHandle() const noexcept override;
+        void* getGLProcAddress(const char* name) const override;
+        SoftwareFramebuffer lockFramebuffer() override;
+        void presentFramebuffer() override;
         u64 getSDLWindowFlags() const;
         WindowFlags* getWindowFlags() noexcept override;
         const WindowDetails* getWindowDetails() noexcept override;
@@ -40,14 +45,16 @@ namespace wma {
 
     private:
         SDL_Window* window_;
+        void* glContext_; //! SDL_GLContext (opaque) — OpenGL mode only
+        void* windowSurface_; //! SDL_Surface* held between lock/present (CPU mode)
         WindowDetails windowDetails_;
         WindowFlags windowFlags_;
         GraphicsAPI graphicsAPI_;
         std::unique_ptr<SDLKeyboardListener> keyboardListener_;
         std::unique_ptr<SDLMouseListener> mouseListener_;
         bool windowShouldClose_;
+        bool ownsSubsystem_; //1 this instance holds a reference to the SDL init
 
-        void processEvents();
         void handleWindowEvent(const SDL_Event* event);
         void initializeSDL();
     };

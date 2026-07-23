@@ -5,23 +5,23 @@ namespace wma {
 namespace {
 
 void invokeMoveCallback(void* d, const WMAMousePosition& pos) {
-    using Holder = std::move_only_function<void(const WMAMousePosition&)>;
+    using Holder = move_only_function<void(const WMAMousePosition&)>;
     (*static_cast<Holder*>(d))(pos);
 }
 
 void invokeScrollCallback(void* d, const WMAMouseScroll& scroll) {
-    using Holder = std::move_only_function<void(const WMAMouseScroll&)>;
+    using Holder = move_only_function<void(const WMAMouseScroll&)>;
     (*static_cast<Holder*>(d))(scroll);
 }
 
 } // namespace
 
 MoveInputCallback MoveInputCallback::from(
-    std::move_only_function<void(const WMAMousePosition&)> callback)
+    move_only_function<void(const WMAMousePosition&)> callback)
 {
     if (!callback) return {};
 
-    using Holder = std::move_only_function<void(const WMAMousePosition&)>;
+    using Holder = move_only_function<void(const WMAMousePosition&)>;
     auto holder = std::make_shared<Holder>(std::move(callback));
 
     MoveInputCallback result;
@@ -32,11 +32,11 @@ MoveInputCallback MoveInputCallback::from(
 }
 
 ScrollInputCallback ScrollInputCallback::from(
-    std::move_only_function<void(const WMAMouseScroll&)> callback)
+    move_only_function<void(const WMAMouseScroll&)> callback)
 {
     if (!callback) return {};
 
-    using Holder = std::move_only_function<void(const WMAMouseScroll&)>;
+    using Holder = move_only_function<void(const WMAMouseScroll&)>;
     auto holder = std::make_shared<Holder>(std::move(callback));
 
     ScrollInputCallback result;

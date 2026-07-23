@@ -32,8 +32,10 @@ namespace wma {
         GlfwWindowManager& operator=(GlfwWindowManager&&) noexcept;
 
         void createWindow(const char* windowName) override;
-        void process(std::function<void()>&& actions) override;
+        void pollEvents() override;
+        void swapBuffers() override;
         void* getWindowInstance() override;
+        void* getGLProcAddress(const char* name) const override;
         WindowFlags* getWindowFlags() noexcept override;
         const WindowDetails* getWindowDetails() noexcept override;
         const std::vector<const char*> getVulkanExtensions() const override;
@@ -53,6 +55,7 @@ namespace wma {
         std::unique_ptr<GLFWMouseListener> mouseListener_;
         std::unique_ptr<GlfwUserData> userData_;
         bool windowShouldClose_;
+        bool ownsInit_;  //! this instance holds a reference to glfwInit()
 
         static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
         static void windowFocusCallback(GLFWwindow* window, int focused);

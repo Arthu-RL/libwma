@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>wma Example - Basic Window</title>
+    <style>
+        html, body { margin: 0; height: 100%; background: #111; }
+        canvas#canvas {
+            display: block;
+            margin: 0 auto;
+            outline: none;
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body>
+    <!-- SDL3's Emscripten video backend looks for #canvas by default. -->
+    <canvas id="canvas" width="1280" height="720" tabindex="-1"></canvas>
+    {{{ SCRIPT }}}
+</body>
+</html>

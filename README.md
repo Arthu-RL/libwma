@@ -1,175 +1,250 @@
-# WMA - Window Management Abstration Library
+# WMA — Window Management Abstraction Library
 
-WMA is a modern C++23 window management library that provides a unified interface for creating and managing windows across different backends (GLFW/SDL3/X11/WAYLAND) and graphics APIs (Vulkan/OpenGL).
+WMA is a modern **C++23** window-management and input library that provides a
+unified interface for creating and driving windows across multiple backends
+(**GLFW / SDL3 / X11 / Wayland**) and graphics APIs (**OpenGL / Vulkan / software**).
 
-# WMA - Window Management Library
-
-## Directory Structure
-```
-libwma/
-├── include/
-│   └── wma/
-│       ├── core/
-│       ├── input/
-│       ├── managers/
-│       ├── exceptions/
-├── src/
-│   ├── input/
-│   ├── managers/
-│   └── exceptions/
-├── CMakeLists.txt
-├── examples/
-└── README.md
-```
+The same code runs on **Linux, Windows, macOS, Android and the Web (WASM)** —
+SDL3 is the portable backend and the only one used on Android/WASM.
 
 ## ✨ Features
 
-- **Multiple Backends**: GLFW/SDL3/X11/WAYLAND support
-- **Graphics APIs**: CPU, Vulkan and OpenGL support
-- **Modern C++23**: Clean, type-safe API design
-- **Input Handling**: Unified keyboard input system
+- **Multiple backends** — GLFW, SDL3, X11, Wayland
+- **Graphics APIs** — OpenGL, Vulkan, and software (CPU) rendering
+- **Cross-platform** — desktop, Android (SDL3) and WebAssembly (SDL3)
+- **Modern C++23** — `enum class`, deducing-this input tables, `move_only_function`
+- **Zero-alloc input** — free-function callbacks take a raw fn-pointer fast path
+- **Layered input contexts** — switch/stack contexts for gameplay, menus, overlays
+- **RAII** — subsystems are reference-counted, so multiple windows coexist safely
 
-## 🚀 Quick Start
+## Directory structure
 
-[Basic usage](https://github.com/Arthu-RL/libwma/blob/main/examples/basic_window/main.cpp)
+```
+libwma/
+├── include/wma/
+│   ├── core/            # Types, WindowDetails, WindowFlags, FrameTimer, BuildConfig
+│   ├── input/           # Keyboard/mouse listeners, binding tables, contexts
+│   ├── managers/        # IWindowManager interface
+│   ├── exceptions/      # WMAException hierarchy
+│   └── backends/        # glfw / sdl / x11 / wayland
+├── src/                 # Implementations + factory (WindowManager.cpp)
+├── examples/basic_window/
+├── cmake/
+└── CMakeLists.txt
+```
+
+## 🚀 Quick start
+
+```cpp
+#include <wma/wma.hpp>
+
+int main() {
+    wma::WindowDetails cfg(1280, 720, /*resizable*/ true, /*targetFPS*/ 60);
+
+    auto window = wma::createWindowManager(
+        wma::WindowBackend::SDL3,   // or ::GLFW / ::X11 / ::WAYLAND
+        cfg,
+        wma::GraphicsAPI::CPU       // or ::OpenGL / ::Vulkan
+    );
+    window->createWindow("Hello WMA");
+
+    auto& keyboard = window->getKeyboardListener();
+    keyboard.addKeyAction(wma::Key::KEY_ESCAPE,
+        wma::KeyAction{ [&]{ window->destroy(); } });
+
+    // Managed loop (blocks on desktop, hands the loop to the browser on WASM):
+    window->process([&]{
+        wma::SoftwareFramebuffer fb = window->lockFramebuffer(); // CPU mode
+        if (fb.valid()) {
+            /* write 32-bit XRGB pixels into fb.pixels (fb.pitch bytes/row) */
+            window->presentFramebuffer();
+        }
+    });
+}
+```
+
+See [examples/basic_window/main.cpp](examples/basic_window/main.cpp) for a full
+tour of the API — every keyboard/mouse method, both context models, the
+Vulkan/OpenGL interop calls, and an animated software framebuffer — built with
+`-DWMA_BUILD_EXAMPLES=ON`. It compiles **unmodified** for desktop, Android and
+WASM (it picks its backend via `getDefaultBackend()`, which resolves to SDL3 on
+every platform where SDL3 is enabled):
+
+| Platform | Example artifact | Notes |
+|---|---|---|
+| Desktop | `wma_basic_window` executable | Run directly |
+| Android | `libmain.so` (shared library) | Named `main` to match what SDL's `SDLActivity` loads via JNI. This repo only produces the `.so` — wiring it into an APK (e.g. SDL's `android-project` template, or your own `app/src/main/jniLibs`/`externalNativeBuild`) is left to whichever **Gradle** project consumes it; this build has no Gradle step of its own. |
+| WASM | `wma_basic_window.html` / `.js` / `.wasm` | Uses a minimal shell ([shell.wasm.html](examples/basic_window/shell.wasm.html)) with the `<canvas id="canvas">` SDL3's Emscripten backend expects. Serve the three files from any static web server. |
 
 ## 🛠️ Building
 
 ### Requirements
 
-- C++23 compatible compiler
-- CMake 4.3.3+
-- At least one of:
-  - GLFW 3.4+
-  - SDL3 3.4+
+- A C++23 compiler (GCC 14+, Clang 18+, or MSVC 19.4x+)
+- CMake ≥ 4.3.3
+- [`ink`](https://github.com/Arthu-RL/libink) (required)
+- At least one backend SDK: **SDL3 3.2+**, **GLFW 3.4+**, **Xlib**, or **Wayland**
+- Optional for OpenGL on the native backends: GLX (X11) / EGL + `wayland-egl` (Wayland)
 
-### Build
+### Desktop build & install
 
 ```bash
 git clone https://github.com/Arthu-RL/libwma.git
 
-export LOCAL_PREFIX=/usr/local
-
-cmake -S ./libwma -B ./libwma/build \
+cmake -S libwma -B libwma/build \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=${LOCAL_PREFIX} \
-    -DWMA_ENABLE_GLFW=OFF \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
     -DWMA_ENABLE_SDL=ON \
+    -DWMA_ENABLE_GLFW=ON \
     -DWMA_ENABLE_X11=ON \
     -DWMA_ENABLE_WAYLAND=ON \
-    -DWMA_BUILD_EXAMPLES=ON && \
-cmake --build ./libwma/build --target install
+    -DWMA_BUILD_EXAMPLES=ON
+
+cmake --build libwma/build --target install
 ```
 
-### CMake Options
+Or use the `linux-debug`/`linux-release` presets directly — both build the
+example (`WMA_BUILD_EXAMPLES=ON`) with every backend enabled except that
+`linux-release` leaves GLFW off (see caveat below):
+`cmake --preset linux-release && cmake --build --preset linux-release`.
+On Windows, `windows-debug`/`windows-release` configure the same project with
+an MSVC-aware toolchain from a Developer Command Prompt (or any shell with
+`vcvarsall`/VS Build Tools on `PATH`) — `src/CMakeLists.txt` selects `/W4` +
+`/Od`/`/O2` automatically instead of the GCC/Clang `-Wall`/`-O3` flags.
+
+> Building the example with **both** `WMA_ENABLE_SDL=ON` and
+> `WMA_ENABLE_GLFW=ON` can fail at the link step on some distros: prebuilt
+> static `libSDL3.a` and `libglfw3.a` each vendor their own copy of the
+> `wp_fractional_scale_manager_v1` Wayland-protocol glue as a strong symbol,
+> which collides. This is a packaging issue in those two static libs, not a
+> wma bug — if you hit it, drop `-DWMA_ENABLE_GLFW=OFF` for the example build,
+> or link SDL3/GLFW as shared libraries instead.
+
+### Android (SDL3) & Web (WASM, SDL3)
+
+The presets force SDL3 as the sole backend on these targets:
+
+```bash
+# Android (needs ANDROID_NDK_HOME + SDL3 built for the ABI)
+cmake --preset android -DWMA_BUILD_EXAMPLES=ON && cmake --build --preset android
+
+# WebAssembly (needs EMSDK + SDL3 built for wasm)
+cmake --preset wasm -DWMA_BUILD_EXAMPLES=ON && cmake --build --preset wasm
+```
+
+Neither preset touches Gradle or any web tooling — they only produce the native
+artifact (`.so` / `.html`+`.js`+`.wasm`) described in the table above.
+
+### CMake options
 
 | Option | Default | Description |
-|--------|---------|-------------|
-| `WMA_BUILD_SHARED` | ON | Build shared library |
-| `WMA_ENABLE_GLFW` | ON | Enable GLFW backend |
-| `WMA_ENABLE_SDL` | ON | Enable SDL2 backend |
-| `WMA_ENABLE_X11` | ON | Enable X11 backend |
-| `WMA_ENABLE_WAYLAND` | ON | Enable WAYLAND backend |
-| `WMA_BUILD_EXAMPLES` | ON | Build example applications |
-| `WMA_BUILD_TESTS` | OFF | Build unit tests |
+|--------|:-------:|-------------|
+| `WMA_ENABLE_SDL` | `OFF` | Enable SDL3 backend (forced `ON` for Android/WASM) |
+| `WMA_ENABLE_GLFW` | `OFF` | Enable GLFW backend (desktop only) |
+| `WMA_ENABLE_X11` | `OFF` | Enable X11 backend (desktop only) |
+| `WMA_ENABLE_WAYLAND` | `OFF` | Enable Wayland backend (desktop only) |
+| `WMA_BUILD_EXAMPLES` | `OFF` | Build the example applications |
+| `WMA_BUILD_TESTS` | `OFF` | Build the test suite (if `tests/` is present) |
+| `WMA_ENABLE_LTO` | `ON` | Link-time optimization for Release |
+| `WMA_NATIVE_OPTIMIZE` | `OFF` | `-march=native` (non-portable; local builds only; no-op on MSVC) |
 
-## 📚 Documentation
+> At least one backend must be enabled, otherwise `createWindowManager()` throws.
 
-### Core Classes
+> Wayland windows get **server-side decorations only** (titlebar/close/min/max),
+> requested via `xdg-decoration-unstable-v1` when the compositor advertises it
+> (KDE, Sway, other wlroots compositors). Compositors that don't — GNOME/Mutter
+> — fall back to a borderless surface; this library does not draw its own
+> client-side decorations.
 
-#### WindowDetails
-Configuration structure for window creation:
+### Consuming with CMake
+
+`find_package` re-discovers whatever backends the library was built with — your
+own code needs no backend SDK on its include path, only `wma.hpp`.
+
+```cmake
+find_package(wma REQUIRED)
+target_link_libraries(your_target PRIVATE wma::wma)
+```
+
+Query what was compiled in at runtime — or at compile time via the generated
+`<wma/core/BuildConfig.hpp>` (`WMA_HAS_SDL`, `WMA_HAS_GLFW`, …).
+
+## 📚 API overview
+
+### `WindowDetails` — creation config
+
 ```cpp
-wma::WindowDetails config{
-    .width = 1920,
-    .height = 1080,
+wma::WindowDetails cfg {
+    .width = 1920, .height = 1080,
     .resizable = true,
-    .targetFPS = 144,
-    .vsync = false,
+    .targetFPS = 144,   // 0 = unlimited
     .fullscreen = false
 };
 ```
 
-#### IWindowManager
+### `IWindowManager` — the window
 
-Base interface for all window managers:
+| Method | Purpose |
+|--------|---------|
+| `createWindow(name)` | Create the OS window / surface |
+| `process(fn)` | Managed loop; WASM-safe (uses `requestAnimationFrame`) |
+| `pollEvents()` / `swapBuffers()` | Manual frame stepping (any platform) |
+| `getWindowInstance()` | Native window handle |
+| `getNativeDisplayHandle()` | Native display (`Display*` / `wl_display*`, else `nullptr`) |
+| `getVulkanExtensions()` | Required Vulkan instance extensions |
+| `getGLProcAddress(name)` | Load an OpenGL function (OpenGL mode) |
+| `lockFramebuffer()` / `presentFramebuffer()` | Software (CPU) rendering |
+| `getKeyboardListener()` / `getMouseListener()` | Input |
+| `getWindowFlags()` | Runtime state (`resized`, `focused`, `deltaTime`, `fps`, …) |
+
+### Graphics-API support per backend
+
+| Backend | Software (CPU) | OpenGL | Vulkan | Platforms |
+|---------|:--------------:|:------:|:------:|-----------|
+| **SDL3** | ✅ surface | ✅ context + swap | ✅ | Desktop, Android, WASM |
+| **GLFW** | ❌ throws² | ✅ context + `getProcAddress` | ✅ | Desktop |
+| **X11** | ✅ XImage | ✅ GLX¹ | ✅ (`xlib_surface`) | Linux |
+| **Wayland** | ✅ `wl_shm` | ✅ EGL¹ | ✅ (`wayland_surface`) | Linux |
+
+¹ Requires GLX (X11) / EGL + `wayland-egl` (Wayland) at build time; otherwise
+OpenGL on that backend reports as unsupported and the rest still builds.
+
+² GLFW has no per-OS software-blit path; `createWindow()` throws
+`GraphicsException` immediately for `GraphicsAPI::CPU` instead of opening a
+window nothing can draw into. Use SDL3/X11/Wayland for CPU rendering, or
+OpenGL/Vulkan with GLFW.
+
+### Input contexts
 
 ```cpp
-auto manager = wma::createWindowManager(
-    wma::WindowBackend::GLFW,
-    windowDetails,
-    wma::GraphicsAPI::Vulkan
-);
+auto& kb = window->getKeyboardListener();
+const auto gameplay = kb.createContext();
+const auto menu     = kb.createContext();
+
+kb.addKeyAction(wma::Key::KEY_D, wma::KeyAction{[]{ /* move right */ }}, gameplay);
+kb.addKeyAction(wma::Key::KEY_D, wma::KeyAction{[]{ /* menu select */ }}, menu);
+kb.setActiveContext(gameplay);      // flat switch
+kb.pushContext(menu);               // stack overlay (wins until popContext())
 ```
 
-### Backend Selection
+## 🏗️ Design principles
 
-WMA doesn't automatically selects the best available backend, you need to manually specify:
-
-```cpp
-// Use GLFW (recommended for graphics applications)
-auto manager = wma::createWindowManager(
-    wma::WindowBackend::GLFW, config, api
-);
-
-// Use SDL3 (better for games, media applications)
-auto manager = wma::createWindowManager(
-    wma::WindowBackend::SDL2, config, api
-);
-```
-
-### Graphics API Support
-
-```cpp
-// Vulkan (modern, explicit API)
-wma::GraphicsAPI::Vulkan
-
-// OpenGL (traditional, easier to use)
-wma::GraphicsAPI::OpenGL
-
-// CPU rendering (software)
-wma::GraphicsAPI::CPU  // SDL3 only
-```
-
-## 🏗️ Architecture
-
-```
-wma/
-├── core/           # Core types and structures
-├── input/          # Input handling system
-├── managers/       # Window manager implementations
-└── exceptions/     # Exception handling
-```
-
-### Design Principles
-
-1. **RAII**: Automatic resource management
-2. **Type Safety**: Strong typing throughout
-3. **Modularity**: Optional backends and APIs
-4. **Performance**: Zero-cost abstractions where possible
-5. **Extensibility**: Easy to add new backends
-
-### Using with CMake
-
-```cmake
-find_package(wma REQUIRED)
-target_link_libraries(your_target PUBLIC wma)
-```
+1. **RAII** with reference-counted subsystems (safe multi-window & move semantics)
+2. **Type safety** — scoped enums; strong types throughout
+3. **Modularity** — every backend and OpenGL/EGL path is optional
+4. **Performance** — zero-cost input fast path, careful frame pacing
+5. **Portability first** — the public header never leaks backend SDK headers
 
 ## 🐛 Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork and branch (`git checkout -b feature/amazing-feature`)
+2. Commit your changes
+3. Open a Pull Request
 
-## 📞 Support
+## 📄 License
 
-- 📧 Create an issue on GitHub
-- 💬 Discussions tab for questions
-- 📖 Check the examples and documentation
+See [LICENSE](LICENSE).
 
 ---
 
-Made with ❤️ by the WMA team
+Made with ❤️ by the Aura3D team

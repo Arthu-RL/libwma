@@ -6,6 +6,7 @@
 #include "WaylandMouseListener.hpp"
 #include "WaylandKeyboardListener.hpp"
 #include "wma/backends/wayland/protocols/xdg-shell-client-protocol.h"
+#include "wma/backends/wayland/protocols/xdg-decoration-unstable-v1-client-protocol.h"
 #include "wma/managers/IWindowManager.hpp"
 
 namespace wma {
@@ -22,8 +23,13 @@ public:
     WaylandWindowManager& operator=(WaylandWindowManager&&) noexcept;
 
     void createWindow(const char* windowName) override;
-    void process(std::function<void()>&& actions) override;
+    void pollEvents() override;
+    void swapBuffers() override;
     void* getWindowInstance() override;
+    void* getNativeDisplayHandle() const noexcept override;
+    void* getGLProcAddress(const char* name) const override;
+    SoftwareFramebuffer lockFramebuffer() override;
+    void presentFramebuffer() override;
     WindowFlags* getWindowFlags() noexcept override;
     const WindowDetails* getWindowDetails() noexcept override;
     const std::vector<const char*> getVulkanExtensions() const override;
@@ -43,18 +49,38 @@ private:
     wl_compositor* compositor_;
     wl_surface* surface_;
     wl_seat* seat_;
+    wl_shm* shm_;
 
     xdg_wm_base* xdgWmBase_;
     xdg_surface* xdgSurface_;
     xdg_toplevel* xdgToplevel_;
 
+    //! xdg-decoration: requests server-side decorations when the compositor
+    //! advertises the global; silently absent under GNOME/Mutter.
+    zxdg_decoration_manager_v1* xdgDecorationManager_;
+    zxdg_toplevel_decoration_v1* xdgToplevelDecoration_;
+
     wl_keyboard* keyboard_;
     wl_pointer* pointer_;
+
+    //! Software rendering (GraphicsAPI::CPU) via wl_shm.
+    wl_buffer* shmBuffer_;
+    void* shmData_;
+    i32 shmSize_;
+    i32 shmWidth_;
+    i32 shmHeight_;
+
+    //! OpenGL via EGL (opaque so this header needs no EGL includes).
+    void* eglWindow_; //! wl_egl_window*
+    void* eglDisplay_; //! EGLDisplay
+    void* eglContext_; //! EGLContext
+    void* eglSurface_; //! EGLSurface
 
     WindowDetails windowDetails_;
     WindowFlags windowFlags_;
     GraphicsAPI graphicsAPI_;
     bool windowShouldClose_;
+    bool configured_;
 
     std::unique_ptr<WaylandKeyboardListener> keyboardListener_;
     std::unique_ptr<WaylandMouseListener> mouseListener_;
@@ -81,8 +107,10 @@ private:
     static void handleXdgToplevelConfigureBounds(void* data, xdg_toplevel* xdg_toplevel,
                                                  i32 width, i32 height);
 
-    void processEvents();
     void setupInputDevices();
+    void initEGL();
+    void allocateShmBuffer(i32 width, i32 height);
+    void destroyShmBuffer();
 };
 
 } // namespace wma

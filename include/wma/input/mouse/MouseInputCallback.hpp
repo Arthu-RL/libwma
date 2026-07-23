@@ -1,9 +1,9 @@
 #ifndef WMA_INPUT_MOUSE_INPUT_CALLBACK_HPP
 #define WMA_INPUT_MOUSE_INPUT_CALLBACK_HPP
 
-#include <functional>
 #include <memory>
 
+#include "wma/core/Types.hpp"
 #include "wma/input/mouse/MouseTypes.hpp"
 
 namespace wma {
@@ -27,7 +27,7 @@ struct MoveInputCallback {
     [[nodiscard]] bool valid() const noexcept { return fn != nullptr; }
 
     static MoveInputCallback from(
-        std::move_only_function<void(const WMAMousePosition&)> callback);
+        wma::move_only_function<void(const WMAMousePosition&)> callback);
 };
 
 struct ScrollInputCallback {
@@ -49,7 +49,7 @@ struct ScrollInputCallback {
     [[nodiscard]] bool valid() const noexcept { return fn != nullptr; }
 
     static ScrollInputCallback from(
-        std::move_only_function<void(const WMAMouseScroll&)> callback);
+        wma::move_only_function<void(const WMAMouseScroll&)> callback);
 };
 
 } // namespace wma

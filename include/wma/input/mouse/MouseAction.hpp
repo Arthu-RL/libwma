@@ -11,9 +11,9 @@ namespace wma {
 
 class MouseAction {
 public:
-    using ButtonCallback   = std::move_only_function<void()>;
-    using PositionCallback = std::move_only_function<void(const WMAMousePosition&)>;
-    using ScrollCallback   = std::move_only_function<void(const WMAMouseScroll&)>;
+    using ButtonCallback   = wma::move_only_function<void()>;
+    using PositionCallback = wma::move_only_function<void(const WMAMousePosition&)>;
+    using ScrollCallback   = wma::move_only_function<void(const WMAMouseScroll&)>;
 
     constexpr MouseAction() = default;
 

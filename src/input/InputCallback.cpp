@@ -7,15 +7,15 @@ namespace {
 // Typed invoker: called with a void* that is really a
 // std::move_only_function<void()>* kept alive through InputCallback::storage_.
 void invokeVoidMoveOnly(void* d) {
-    (*static_cast<std::move_only_function<void()>*>(d))();
+    (*static_cast<move_only_function<void()>*>(d))();
 }
 
 } // namespace
 
-InputCallback InputCallback::from(std::move_only_function<void()> callback) {
+InputCallback InputCallback::from(move_only_function<void()> callback) {
     if (!callback) return {};
 
-    using Holder = std::move_only_function<void()>;
+    using Holder = move_only_function<void()>;
     auto holder = std::make_shared<Holder>(std::move(callback));
 
     InputCallback result;
