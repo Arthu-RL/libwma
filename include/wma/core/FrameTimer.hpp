@@ -69,7 +69,7 @@ public:
 
 private:
     WindowFlags& windowFlags_;
-    std::chrono::duration<f64, std::milli> targetFrameTime_{0.0}; //! 0 => unlimited
+    std::chrono::duration<f64, std::milli> targetFrameTime_{0.0}; //!< 0 => unlimited
     clock::time_point lastFrameStart_;
     clock::time_point frameStart_;
 };

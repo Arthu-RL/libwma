@@ -9,6 +9,7 @@
 #include <SDL3/SDL_vulkan.h>
 
 #include <atomic>
+#include <utility>
 
 namespace wma {
 
@@ -38,40 +39,32 @@ namespace {
     }
 
     SdlWindowManager::SdlWindowManager(SdlWindowManager&& other) noexcept
-        : window_(other.window_)
-        , glContext_(other.glContext_)
-        , windowSurface_(other.windowSurface_)
+        : window_(std::exchange(other.window_, nullptr))
+        , glContext_(std::exchange(other.glContext_, nullptr))
+        , windowSurface_(std::exchange(other.windowSurface_, nullptr))
         , windowDetails_(std::move(other.windowDetails_))
         , windowFlags_(std::move(other.windowFlags_))
         , graphicsAPI_(other.graphicsAPI_)
         , keyboardListener_(std::move(other.keyboardListener_))
         , mouseListener_(std::move(other.mouseListener_))
         , windowShouldClose_(other.windowShouldClose_)
-        , ownsSubsystem_(other.ownsSubsystem_)
+        , ownsSubsystem_(std::exchange(other.ownsSubsystem_, false))
     {
-        other.window_ = nullptr;
-        other.glContext_ = nullptr;
-        other.windowSurface_ = nullptr;
-        other.ownsSubsystem_ = false;
     }
 
     SdlWindowManager& SdlWindowManager::operator=(SdlWindowManager&& other) noexcept {
         if (this != &other) {
             destroy();
-            window_ = other.window_;
-            glContext_ = other.glContext_;
-            windowSurface_ = other.windowSurface_;
+            window_ = std::exchange(other.window_, nullptr);
+            glContext_ = std::exchange(other.glContext_, nullptr);
+            windowSurface_ = std::exchange(other.windowSurface_, nullptr);
             windowDetails_ = std::move(other.windowDetails_);
             windowFlags_ = std::move(other.windowFlags_);
             graphicsAPI_ = other.graphicsAPI_;
             keyboardListener_ = std::move(other.keyboardListener_);
             mouseListener_ = std::move(other.mouseListener_);
             windowShouldClose_ = other.windowShouldClose_;
-            ownsSubsystem_ = other.ownsSubsystem_;
-            other.window_ = nullptr;
-            other.glContext_ = nullptr;
-            other.windowSurface_ = nullptr;
-            other.ownsSubsystem_ = false;
+            ownsSubsystem_ = std::exchange(other.ownsSubsystem_, false);
         }
         return *this;
     }

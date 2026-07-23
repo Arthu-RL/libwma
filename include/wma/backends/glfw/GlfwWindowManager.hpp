@@ -55,7 +55,7 @@ namespace wma {
         std::unique_ptr<GLFWMouseListener> mouseListener_;
         std::unique_ptr<GlfwUserData> userData_;
         bool windowShouldClose_;
-        bool ownsInit_;  //! this instance holds a reference to glfwInit()
+        bool ownsInit_;  //!< this instance holds a reference to glfwInit()
 
         static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
         static void windowFocusCallback(GLFWwindow* window, int focused);

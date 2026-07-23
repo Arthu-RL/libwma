@@ -4,8 +4,8 @@ namespace wma {
 
 namespace {
 
-// Typed invoker: called with a void* that is really a
-// std::move_only_function<void()>* kept alive through InputCallback::storage_.
+//! Typed invoker: called with a void* that is really a
+//! std::move_only_function<void()>* kept alive through InputCallback::storage_.
 void invokeVoidMoveOnly(void* d) {
     (*static_cast<move_only_function<void()>*>(d))();
 }

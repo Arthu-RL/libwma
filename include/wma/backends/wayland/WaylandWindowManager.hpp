@@ -71,10 +71,10 @@ private:
     i32 shmHeight_;
 
     //! OpenGL via EGL (opaque so this header needs no EGL includes).
-    void* eglWindow_; //! wl_egl_window*
-    void* eglDisplay_; //! EGLDisplay
-    void* eglContext_; //! EGLContext
-    void* eglSurface_; //! EGLSurface
+    void* eglWindow_; //!< wl_egl_window*
+    void* eglDisplay_; //!< EGLDisplay
+    void* eglContext_; //!< EGLContext
+    void* eglSurface_; //!< EGLSurface
 
     WindowDetails windowDetails_;
     WindowFlags windowFlags_;

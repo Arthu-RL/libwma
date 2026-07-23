@@ -40,7 +40,7 @@ public:
     MouseListener(MouseListener&&)                 = default;
     MouseListener& operator=(MouseListener&&)      = default;
 
-    // Context management
+    //! Context management.
     [[nodiscard]] InputContextId createContext();
     void setActiveContext(InputContextId context);
     void pushContext(InputContextId context);
@@ -48,7 +48,7 @@ public:
     [[nodiscard]] InputContextId getActiveContext()   const;
     [[nodiscard]] InputContextId getResolvedContext() const;
 
-    // Binding
+    //! Binding.
     void addButtonAction(i32 button, MouseAction action);
     void addButtonAction(i32 button, MouseAction action, InputContextId context);
     void removeButtonAction(i32 button);

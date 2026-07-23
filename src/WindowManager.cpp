@@ -50,7 +50,7 @@ std::unique_ptr<IWindowManager> createWindowManager(
 
 WindowBackend getDefaultBackend() {
 #if defined(WMA_ENABLE_SDL)
-    // SDL3 is the most portable backend and the only one available on WASM/Android.
+    //! SDL3 is the most portable backend and the only one available on WASM/Android.
     return WindowBackend::SDL3;
 #elif defined(WMA_ENABLE_WAYLAND)
     return WindowBackend::WAYLAND;

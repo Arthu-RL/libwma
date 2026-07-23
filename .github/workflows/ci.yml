@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  build-and-test:
+    name: Build (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    container:
+      image: arthurrl/vulkan-dev:lts
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: desktop-all (Debug)
+            preset: linux-debug
+          - name: desktop-all (Release)
+            preset: linux-release
+
+          - name: sdl-only
+            cmake_flags: >-
+              -DWMA_ENABLE_SDL=ON -DWMA_ENABLE_GLFW=OFF
+              -DWMA_ENABLE_X11=OFF -DWMA_ENABLE_WAYLAND=OFF
+          - name: glfw-only
+            cmake_flags: >-
+              -DWMA_ENABLE_SDL=OFF -DWMA_ENABLE_GLFW=ON
+              -DWMA_ENABLE_X11=OFF -DWMA_ENABLE_WAYLAND=OFF
+          - name: x11-only
+            cmake_flags: >-
+              -DWMA_ENABLE_SDL=OFF -DWMA_ENABLE_GLFW=OFF
+              -DWMA_ENABLE_X11=ON -DWMA_ENABLE_WAYLAND=OFF
+          - name: wayland-only
+            cmake_flags: >-
+              -DWMA_ENABLE_SDL=OFF -DWMA_ENABLE_GLFW=OFF
+              -DWMA_ENABLE_X11=OFF -DWMA_ENABLE_WAYLAND=ON
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (preset)
+        if: matrix.preset
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Configure (explicit backend)
+        if: matrix.cmake_flags
+
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DWMA_BUILD_EXAMPLES=ON
+          ${{ matrix.cmake_flags }}
+
+      - name: Build
+        run: cmake --build build --parallel
+
+  wasm-build:
+    name: WASM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: arthurrl/vulkan-dev:lts
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          source /opt/emsdk/emsdk_env.sh
+          emcmake cmake -S . -B build-wasm \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/usr/local/wasm-deps \
+            -DWMA_BUILD_EXAMPLES=ON \
+            -DWMA_BUILD_TESTS=OFF
+
+      - name: Build
+        run: |
+          source /opt/emsdk/emsdk_env.sh
+          cmake --build build-wasm --parallel
+
+  android-build:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # continue-on-error: true
+    container:
+      image: arthurrl/vulkan-dev:lts
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-android -G Ninja
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+          -DANDROID_ABI=arm64-v8a
+          -DANDROID_PLATFORM=android-29
+          -DANDROID_STL=c++_shared
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH=/usr/local/android-deps
+          -DWMA_BUILD_EXAMPLES=ON
+          -DWMA_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build-android --parallel

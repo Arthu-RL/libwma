@@ -516,10 +516,9 @@ inline Key mapX11Key(KeySym x11Key) {
 #endif
 
 #ifdef WMA_ENABLE_WAYLAND
-// Note: evdev codes map physical key positions.
+//! evdev codes map physical key positions. The handler adds 8 to get the
+//! xkbKeycode, so subtract 8 to get back to the standard Linux evdev keycode.
 inline Key mapWaylandKey(u32 xkbKeycode) {
-    // The handler adds 8 to get the xkbKeycode.
-    // so subtract 8 to get back to the standard Linux evdev keycode.
     u32 evdevKey = xkbKeycode - 8;
 
     switch (evdevKey) {

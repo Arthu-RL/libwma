@@ -74,29 +74,47 @@ if(WMA_ENABLE_WAYLAND)
     )
     file(MAKE_DIRECTORY "${WMA_WAYLAND_PROTO_DIR}")
 
-    execute_process(
-        COMMAND "${WAYLAND_SCANNER}" client-header
-            "${WAYLAND_PROTOCOLS_DATADIR}/stable/xdg-shell/xdg-shell.xml"
-            "${WMA_WAYLAND_PROTO_DIR}/xdg-shell-client-protocol.h"
-        RESULT_VARIABLE _wl_scanner_result
-    )
-    if(_wl_scanner_result)
-        message(FATAL_ERROR
-            "[wma] wayland-scanner failed to generate xdg-shell-client-protocol.h "
-            "(exit code: ${_wl_scanner_result})"
-        )
-    endif()
+    set(WMA_WAYLAND_GENERATED_SOURCES "" CACHE INTERNAL "")
 
-    execute_process(
-        COMMAND "${WAYLAND_SCANNER}" client-header
-            "${WAYLAND_PROTOCOLS_DATADIR}/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml"
-            "${WMA_WAYLAND_PROTO_DIR}/xdg-decoration-unstable-v1-client-protocol.h"
-        RESULT_VARIABLE _wl_scanner_result
-    )
-    if(_wl_scanner_result)
-        message(FATAL_ERROR
-            "[wma] wayland-scanner failed to generate xdg-decoration-unstable-v1-client-protocol.h "
-            "(exit code: ${_wl_scanner_result})"
+    # Runs a wayland-scanner subcommand, aborting the configure on failure.
+    function(wma_run_wayland_scanner mode xml_relpath out_name)
+        execute_process(
+            COMMAND "${WAYLAND_SCANNER}" "${mode}"
+                "${WAYLAND_PROTOCOLS_DATADIR}/${xml_relpath}"
+                "${WMA_WAYLAND_PROTO_DIR}/${out_name}"
+            RESULT_VARIABLE _wl_scanner_result
         )
-    endif()
+        if(_wl_scanner_result)
+            message(FATAL_ERROR
+                "[wma] wayland-scanner failed to generate ${out_name} "
+                "(exit code: ${_wl_scanner_result})"
+            )
+        endif()
+    endfunction()
+
+    # Generates both the client-header (declarations, e.g. `xdg_wm_base_interface`)
+    # and the private-code (the .c that actually *defines* those wl_interface
+    # symbols) for <xml_relpath>, relative to the wayland-protocols pkgdatadir.
+    # Without the private-code half, the Wayland backend fails to link on its own
+    # — it previously only worked when built alongside SDL3, whose static lib
+    # happens to vendor the same symbols.
+    function(wma_generate_wayland_protocol xml_relpath header_name source_name)
+        wma_run_wayland_scanner(client-header "${xml_relpath}" "${header_name}")
+        wma_run_wayland_scanner(private-code  "${xml_relpath}" "${source_name}")
+        set(WMA_WAYLAND_GENERATED_SOURCES
+            ${WMA_WAYLAND_GENERATED_SOURCES} "${WMA_WAYLAND_PROTO_DIR}/${source_name}"
+            CACHE INTERNAL ""
+        )
+    endfunction()
+
+    wma_generate_wayland_protocol(
+        stable/xdg-shell/xdg-shell.xml
+        xdg-shell-client-protocol.h
+        xdg-shell-protocol.c
+    )
+    wma_generate_wayland_protocol(
+        unstable/xdg-decoration/xdg-decoration-unstable-v1.xml
+        xdg-decoration-unstable-v1-client-protocol.h
+        xdg-decoration-unstable-v1-protocol.c
+    )
 endif()

@@ -11,6 +11,8 @@ SDL3 is the portable backend and the only one used on Android/WASM.
 
 - **Multiple backends** — GLFW, SDL3, X11, Wayland
 - **Graphics APIs** — OpenGL, Vulkan, and software (CPU) rendering
+- **Parallel software rendering** — `parallelFill()` spreads CPU pixel work across
+  hardware threads, one row-band per core, the way a GPU spreads it across cores
 - **Cross-platform** — desktop, Android (SDL3) and WebAssembly (SDL3)
 - **Modern C++23** — `enum class`, deducing-this input tables, `move_only_function`
 - **Zero-alloc input** — free-function callbacks take a raw fn-pointer fast path
@@ -26,6 +28,7 @@ libwma/
 │   ├── input/           # Keyboard/mouse listeners, binding tables, contexts
 │   ├── managers/        # IWindowManager interface
 │   ├── exceptions/      # WMAException hierarchy
+│   ├── rendering/       # SoftwareRenderer — parallel CPU framebuffer fill
 │   └── backends/        # glfw / sdl / x11 / wayland
 ├── src/                 # Implementations + factory (WindowManager.cpp)
 ├── examples/basic_window/
@@ -213,6 +216,30 @@ OpenGL on that backend reports as unsupported and the rest still builds.
 `GraphicsException` immediately for `GraphicsAPI::CPU` instead of opening a
 window nothing can draw into. Use SDL3/X11/Wayland for CPU rendering, or
 OpenGL/Vulkan with GLFW.
+
+### Parallel software rendering — `wma::parallelFill()`
+
+Writing every pixel of a `GraphicsAPI::CPU` framebuffer on a single thread wastes
+the rest of the machine. `parallelFill()` splits the frame into one contiguous
+row-band per hardware thread and runs them on a process-wide worker pool shared
+by every window — the CPU-rendering equivalent of a GPU spreading pixel work
+across its cores.
+
+```cpp
+wma::SoftwareFramebuffer fb = window->lockFramebuffer();
+if (fb.valid()) {
+    wma::parallelFill(fb, [](i32 x, i32 y) -> u32 {
+        return /* packed 32-bit pixel for (x, y) */;
+    });
+    window->presentFramebuffer();
+}
+```
+
+`pixel(x, y)` may run concurrently on different worker threads for different
+rows, so it must not touch shared mutable state; `parallelFill()` blocks until
+the whole frame is written, so the framebuffer is ready to present as soon as it
+returns. `softwareRenderWorkerCount()` reports how many row-bands it uses (the
+machine's `hardware_concurrency()`, clamped to at least 1).
 
 ### Input contexts
 

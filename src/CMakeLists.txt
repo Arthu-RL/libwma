@@ -128,6 +128,10 @@ if(WMA_ENABLE_WAYLAND)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_WAYLAND)
     target_link_libraries(wma PRIVATE PkgConfig::WAYLAND)
 
+    # Generated protocol marshalling code (defines xdg_wm_base_interface & co.,
+    # which the client headers only declare) — see cmake/Dependencies.cmake.
+    target_sources(wma PRIVATE ${WMA_WAYLAND_GENERATED_SOURCES})
+
     # OpenGL on Wayland is done through EGL + wayland-egl (optional, as above).
     if(WMA_ENABLE_WAYLAND_GL)
         target_link_libraries(wma PRIVATE PkgConfig::WAYLAND_EGL)

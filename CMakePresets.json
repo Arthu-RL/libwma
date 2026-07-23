@@ -21,7 +21,6 @@
         "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/linux/debug",
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
-        "WMA_ENABLE_GLFW": "ON",
         "WMA_ENABLE_X11": "ON",
         "WMA_ENABLE_WAYLAND": "ON"
       }
