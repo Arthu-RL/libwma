@@ -8,16 +8,19 @@
 
 namespace wma {
 
-// Fixed-size O(1) table mapping integer slot indices to Actions.
-// Template parameter N must equal the total number of valid indices
-// (e.g. KEY_COUNT for keyboard, MOUSE_BUTTON_COUNT for mouse).
-// All slots default-initialise to Action{} (an empty/unbound action).
+/**
+ * @brief Fixed-size O(1) table mapping integer slot indices to Actions.
+ *
+ * Template parameter N must equal the total number of valid indices
+ * (e.g. KEY_COUNT for keyboard, MOUSE_BUTTON_COUNT for mouse).
+ * All slots default-initialise to Action{} (an empty/unbound action).
+ */
 template <typename Action, usize N>
 class InputBindingTable {
 public:
-    // Single subscript operator using C++23 deducing-this: one definition
-    // handles both const and mutable references, returning the correct
-    // reference category without code duplication.
+    //! Single subscript operator using C++23 deducing-this: one definition
+    //! handles both const and mutable references, returning the correct
+    //! reference category without code duplication.
     template <typename Self>
     [[nodiscard]] decltype(auto) operator[](this Self&& self, usize index) {
         assert(index < N);

@@ -7,14 +7,17 @@
 
 namespace wma {
 
-// Binds a press and/or release callback to a key.
-// The fast path (no captures) uses a raw function pointer with zero overhead.
-// Capturing lambdas are stored via std::move_only_function, allowing move-only
-// captures (e.g. std::unique_ptr) without requiring copyability.
+/**
+ * @brief Binds a press and/or release callback to a key.
+ *
+ * The fast path (no captures) uses a raw function pointer with zero overhead.
+ * Capturing lambdas are stored via std::move_only_function, allowing move-only
+ * captures (e.g. std::unique_ptr) without requiring copyability.
+ */
 class KeyAction {
 public:
-    // Accepting std::move_only_function lets users pass any callable — plain
-    // lambdas, capturing lambdas, move-only closures, or nullptr.
+    //! Accepting std::move_only_function lets users pass any callable — plain
+    //! lambdas, capturing lambdas, move-only closures, or nullptr.
     using Callback = wma::move_only_function<void()>;
 
     constexpr KeyAction() = default;
@@ -23,7 +26,7 @@ public:
         : onPress_ (InputCallback::from(std::move(onPress)))
         , onRelease_(InputCallback::from(std::move(onRelease))) {}
 
-    // Fast constructor: raw function pointer + userdata, zero heap allocation.
+    //! Fast constructor: raw function pointer + userdata, zero heap allocation.
     KeyAction(void(*onPress)(void*),  void* pressData,
               void(*onRelease)(void*) = nullptr, void* releaseData = nullptr) noexcept
         : onPress_ (onPress,  pressData)

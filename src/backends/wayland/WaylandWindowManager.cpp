@@ -8,6 +8,7 @@
 #include <cstring>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <utility>
 
 #ifdef WMA_WAYLAND_HAS_GL
 #include <wayland-egl.h>
@@ -96,28 +97,28 @@ WaylandWindowManager::~WaylandWindowManager()
 }
 
 WaylandWindowManager::WaylandWindowManager(WaylandWindowManager&& other) noexcept
-    : display_(other.display_)
-    , registry_(other.registry_)
-    , compositor_(other.compositor_)
-    , surface_(other.surface_)
-    , seat_(other.seat_)
-    , shm_(other.shm_)
-    , xdgWmBase_(other.xdgWmBase_)
-    , xdgSurface_(other.xdgSurface_)
-    , xdgToplevel_(other.xdgToplevel_)
-    , xdgDecorationManager_(other.xdgDecorationManager_)
-    , xdgToplevelDecoration_(other.xdgToplevelDecoration_)
-    , keyboard_(other.keyboard_)
-    , pointer_(other.pointer_)
-    , shmBuffer_(other.shmBuffer_)
-    , shmData_(other.shmData_)
+    : display_(std::exchange(other.display_, nullptr))
+    , registry_(std::exchange(other.registry_, nullptr))
+    , compositor_(std::exchange(other.compositor_, nullptr))
+    , surface_(std::exchange(other.surface_, nullptr))
+    , seat_(std::exchange(other.seat_, nullptr))
+    , shm_(std::exchange(other.shm_, nullptr))
+    , xdgWmBase_(std::exchange(other.xdgWmBase_, nullptr))
+    , xdgSurface_(std::exchange(other.xdgSurface_, nullptr))
+    , xdgToplevel_(std::exchange(other.xdgToplevel_, nullptr))
+    , xdgDecorationManager_(std::exchange(other.xdgDecorationManager_, nullptr))
+    , xdgToplevelDecoration_(std::exchange(other.xdgToplevelDecoration_, nullptr))
+    , keyboard_(std::exchange(other.keyboard_, nullptr))
+    , pointer_(std::exchange(other.pointer_, nullptr))
+    , shmBuffer_(std::exchange(other.shmBuffer_, nullptr))
+    , shmData_(std::exchange(other.shmData_, nullptr))
     , shmSize_(other.shmSize_)
     , shmWidth_(other.shmWidth_)
     , shmHeight_(other.shmHeight_)
-    , eglWindow_(other.eglWindow_)
-    , eglDisplay_(other.eglDisplay_)
-    , eglContext_(other.eglContext_)
-    , eglSurface_(other.eglSurface_)
+    , eglWindow_(std::exchange(other.eglWindow_, nullptr))
+    , eglDisplay_(std::exchange(other.eglDisplay_, nullptr))
+    , eglContext_(std::exchange(other.eglContext_, nullptr))
+    , eglSurface_(std::exchange(other.eglSurface_, nullptr))
     , windowDetails_(other.windowDetails_)
     , windowFlags_(other.windowFlags_)
     , graphicsAPI_(other.graphicsAPI_)
@@ -126,25 +127,6 @@ WaylandWindowManager::WaylandWindowManager(WaylandWindowManager&& other) noexcep
     , keyboardListener_(std::move(other.keyboardListener_))
     , mouseListener_(std::move(other.mouseListener_))
 {
-    other.display_ = nullptr;
-    other.registry_ = nullptr;
-    other.compositor_ = nullptr;
-    other.surface_ = nullptr;
-    other.seat_ = nullptr;
-    other.shm_ = nullptr;
-    other.xdgWmBase_ = nullptr;
-    other.xdgSurface_ = nullptr;
-    other.xdgToplevel_ = nullptr;
-    other.xdgDecorationManager_ = nullptr;
-    other.xdgToplevelDecoration_ = nullptr;
-    other.keyboard_ = nullptr;
-    other.pointer_ = nullptr;
-    other.shmBuffer_ = nullptr;
-    other.shmData_ = nullptr;
-    other.eglWindow_ = nullptr;
-    other.eglDisplay_ = nullptr;
-    other.eglContext_ = nullptr;
-    other.eglSurface_ = nullptr;
 }
 
 WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& other) noexcept
@@ -152,28 +134,28 @@ WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& oth
     if (this != &other) {
         destroy();
 
-        display_ = other.display_;
-        registry_ = other.registry_;
-        compositor_ = other.compositor_;
-        surface_ = other.surface_;
-        seat_ = other.seat_;
-        shm_ = other.shm_;
-        xdgWmBase_ = other.xdgWmBase_;
-        xdgSurface_ = other.xdgSurface_;
-        xdgToplevel_ = other.xdgToplevel_;
-        xdgDecorationManager_ = other.xdgDecorationManager_;
-        xdgToplevelDecoration_ = other.xdgToplevelDecoration_;
-        keyboard_ = other.keyboard_;
-        pointer_ = other.pointer_;
-        shmBuffer_ = other.shmBuffer_;
-        shmData_ = other.shmData_;
+        display_ = std::exchange(other.display_, nullptr);
+        registry_ = std::exchange(other.registry_, nullptr);
+        compositor_ = std::exchange(other.compositor_, nullptr);
+        surface_ = std::exchange(other.surface_, nullptr);
+        seat_ = std::exchange(other.seat_, nullptr);
+        shm_ = std::exchange(other.shm_, nullptr);
+        xdgWmBase_ = std::exchange(other.xdgWmBase_, nullptr);
+        xdgSurface_ = std::exchange(other.xdgSurface_, nullptr);
+        xdgToplevel_ = std::exchange(other.xdgToplevel_, nullptr);
+        xdgDecorationManager_ = std::exchange(other.xdgDecorationManager_, nullptr);
+        xdgToplevelDecoration_ = std::exchange(other.xdgToplevelDecoration_, nullptr);
+        keyboard_ = std::exchange(other.keyboard_, nullptr);
+        pointer_ = std::exchange(other.pointer_, nullptr);
+        shmBuffer_ = std::exchange(other.shmBuffer_, nullptr);
+        shmData_ = std::exchange(other.shmData_, nullptr);
         shmSize_ = other.shmSize_;
         shmWidth_ = other.shmWidth_;
         shmHeight_ = other.shmHeight_;
-        eglWindow_ = other.eglWindow_;
-        eglDisplay_ = other.eglDisplay_;
-        eglContext_ = other.eglContext_;
-        eglSurface_ = other.eglSurface_;
+        eglWindow_ = std::exchange(other.eglWindow_, nullptr);
+        eglDisplay_ = std::exchange(other.eglDisplay_, nullptr);
+        eglContext_ = std::exchange(other.eglContext_, nullptr);
+        eglSurface_ = std::exchange(other.eglSurface_, nullptr);
         windowDetails_ = other.windowDetails_;
         windowFlags_ = other.windowFlags_;
         graphicsAPI_ = other.graphicsAPI_;
@@ -181,26 +163,6 @@ WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& oth
         configured_ = other.configured_;
         keyboardListener_ = std::move(other.keyboardListener_);
         mouseListener_ = std::move(other.mouseListener_);
-
-        other.display_ = nullptr;
-        other.registry_ = nullptr;
-        other.compositor_ = nullptr;
-        other.surface_ = nullptr;
-        other.seat_ = nullptr;
-        other.shm_ = nullptr;
-        other.xdgWmBase_ = nullptr;
-        other.xdgSurface_ = nullptr;
-        other.xdgToplevel_ = nullptr;
-        other.xdgDecorationManager_ = nullptr;
-        other.xdgToplevelDecoration_ = nullptr;
-        other.keyboard_ = nullptr;
-        other.pointer_ = nullptr;
-        other.shmBuffer_ = nullptr;
-        other.shmData_ = nullptr;
-        other.eglWindow_ = nullptr;
-        other.eglDisplay_ = nullptr;
-        other.eglContext_ = nullptr;
-        other.eglSurface_ = nullptr;
     }
     return *this;
 }
@@ -234,7 +196,7 @@ void WaylandWindowManager::createWindow(const char* windowName)
     xdg_toplevel_set_app_id(xdgToplevel_, "wma_app");
 
     //! Server-side decorations only: if the compositor doesn't advertise
-    //1 zxdg_decoration_manager_v1 (e.g. GNOME/Mutter), the surface stays
+    //! zxdg_decoration_manager_v1 (e.g. GNOME/Mutter), the surface stays
     //! borderless — this library does not implement client-side decorations.
     if (xdgDecorationManager_) {
         xdgToplevelDecoration_ = zxdg_decoration_manager_v1_get_toplevel_decoration(
@@ -243,7 +205,7 @@ void WaylandWindowManager::createWindow(const char* windowName)
             xdgToplevelDecoration_, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
     }
 
-    // Initial commit, then block until the compositor configures the surface.
+    //! Initial commit, then block until the compositor configures the surface.
     wl_surface_commit(surface_);
     wl_display_roundtrip(display_);
     while (!configured_) 
@@ -266,7 +228,7 @@ void WaylandWindowManager::createWindow(const char* windowName)
             allocateShmBuffer(windowDetails_.width, windowDetails_.height);
             break;
         case GraphicsAPI::Vulkan:
-            // The application creates the VkSurfaceKHR from display_ + surface_.
+            //! The application creates the VkSurfaceKHR from display_ + surface_.
             break;
         default:
             throw GraphicsException("Unsupported graphics API for Wayland");

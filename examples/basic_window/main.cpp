@@ -4,7 +4,6 @@
 // which needs no GPU loader/SDK and is supported everywhere.
 
 #include <ink/Inkogger.h>
-#include <cstdint>
 
 #include "wma/wma.hpp"
 
@@ -30,16 +29,6 @@ const char* toString(wma::GraphicsAPI api) {
 }
 
 } // namespace
-
-#if defined(__ANDROID__)
-// SDL's Java activity loads this library and locates the entry point via
-// dlsym("main"). Some external Gradle/NDK toolchains default to hidden symbol
-// visibility, which would make that lookup fail — force default visibility
-// here so the example works regardless of the consuming project's flags.
-// __ANDROID__ is a plain NDK platform macro, not a backend SDK header, so this
-// does not require any SDL3 include on the example's side.
-extern "C" __attribute__((visibility("default"))) int main(int argc, char** argv);
-#endif
 
 int main(int argc, char** argv) {
     (void)argc; (void)argv;
@@ -255,20 +244,17 @@ int main(int argc, char** argv) {
             }
 
             // Software rendering: paint an animated gradient into the framebuffer.
-            // Works on every backend/platform because it needs no GPU loader.
+            // wma::parallelFill() spreads the per-pixel work across CPU cores (one
+            // row-band per hardware thread) instead of walking every pixel serially.
             wma::SoftwareFramebuffer fb = windowManager->lockFramebuffer();
             if (fb.valid()) {
-                const auto t = static_cast<uint32_t>(frameCount);
-                for (i32 y = 0; y < fb.height; ++y) {
-                    auto* row = reinterpret_cast<uint32_t*>(
-                        static_cast<uint8_t*>(fb.pixels) + static_cast<usize>(y) * fb.pitch);
-                    for (i32 x = 0; x < fb.width; ++x) {
-                        const uint32_t r = static_cast<uint32_t>(x + t) & 0xFF;
-                        const uint32_t g = static_cast<uint32_t>(y + t) & 0xFF;
-                        const uint32_t b = (t >> 1) & 0xFF;
-                        row[x] = (r << 16) | (g << 8) | b; // XRGB8888
-                    }
-                }
+                const auto t = static_cast<u32>(frameCount);
+                wma::parallelFill(fb, [t](i32 x, i32 y) -> u32 {
+                    const u32 r = static_cast<u32>(x + t) & 0xFF;
+                    const u32 g = static_cast<u32>(y + t) & 0xFF;
+                    const u32 b = (t >> 1) & 0xFF;
+                    return (r << 16) | (g << 8) | b; // XRGB8888
+                });
                 windowManager->presentFramebuffer();
             }
         });

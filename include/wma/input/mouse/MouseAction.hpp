@@ -17,16 +17,16 @@ public:
 
     constexpr MouseAction() = default;
 
-    // Button action (press + optional release)
+    //! Button action (press + optional release).
     MouseAction(ButtonCallback onPress, ButtonCallback onRelease = nullptr)
         : onPress_ (InputCallback::from(std::move(onPress)))
         , onRelease_(InputCallback::from(std::move(onRelease))) {}
 
-    // Move action
+    //! Move action.
     explicit MouseAction(PositionCallback onMove)
         : onMove_(MoveInputCallback::from(std::move(onMove))) {}
 
-    // Scroll action
+    //! Scroll action.
     explicit MouseAction(ScrollCallback onScroll)
         : onScroll_(ScrollInputCallback::from(std::move(onScroll))) {}
 

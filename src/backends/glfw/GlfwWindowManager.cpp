@@ -8,10 +8,11 @@
 #include <GLFW/glfw3.h>
 
 #include <atomic>
+#include <utility>
 
 namespace wma {
 
-//! glfwInit()/glfwTerminate() are process-global; re!ference-count so multiple
+//! glfwInit()/glfwTerminate() are process-global; reference-count so multiple
 //! windows coexist and destroying one never terminates GLFW for a live one.
 namespace {
     std::atomic<int> g_glfwRefCount{0};
@@ -39,7 +40,7 @@ namespace {
     }
 
     GlfwWindowManager::GlfwWindowManager(GlfwWindowManager&& other) noexcept
-        : window_(other.window_)
+        : window_(std::exchange(other.window_, nullptr))
         , windowDetails_(std::move(other.windowDetails_))
         , windowFlags_(std::move(other.windowFlags_))
         , graphicsAPI_(other.graphicsAPI_)
@@ -47,10 +48,8 @@ namespace {
         , mouseListener_(std::move(other.mouseListener_))
         , userData_(std::move(other.userData_))
         , windowShouldClose_(other.windowShouldClose_)
-        , ownsInit_(other.ownsInit_)
+        , ownsInit_(std::exchange(other.ownsInit_, false))
     {
-        other.window_ = nullptr;
-        other.ownsInit_ = false;
         if (userData_) {
             userData_->windowManager = this;
             userData_->keyboardListener = keyboardListener_.get();
@@ -61,7 +60,7 @@ namespace {
     GlfwWindowManager& GlfwWindowManager::operator=(GlfwWindowManager&& other) noexcept {
         if (this != &other) {
             destroy();
-            window_ = other.window_;
+            window_ = std::exchange(other.window_, nullptr);
             windowDetails_ = std::move(other.windowDetails_);
             windowFlags_ = std::move(other.windowFlags_);
             graphicsAPI_ = other.graphicsAPI_;
@@ -69,9 +68,7 @@ namespace {
             mouseListener_ = std::move(other.mouseListener_);
             userData_ = std::move(other.userData_);
             windowShouldClose_ = other.windowShouldClose_;
-            ownsInit_ = other.ownsInit_;
-            other.window_ = nullptr;
-            other.ownsInit_ = false;
+            ownsInit_ = std::exchange(other.ownsInit_, false);
             if (userData_) {
                 userData_->windowManager = this;
                 userData_->keyboardListener = keyboardListener_.get();
@@ -130,7 +127,7 @@ namespace {
         if (graphicsAPI_ == GraphicsAPI::OpenGL) {
             glfwMakeContextCurrent(window_);
             glfwSwapInterval(windowDetails_.vsync ? 1 : 0);
-            // No GL loader is bundled: load functions yourself via getGLProcAddress().
+            //! No GL loader is bundled: load functions yourself via getGLProcAddress().
         }
 
         keyboardListener_->initialize(window_);

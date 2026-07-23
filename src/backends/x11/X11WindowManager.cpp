@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 
 #ifdef WMA_X11_HAS_GL
 #include <GL/glx.h>
@@ -35,13 +36,13 @@ X11WindowManager::~X11WindowManager() {
 }
 
 X11WindowManager::X11WindowManager(X11WindowManager&& other) noexcept
-    : display_(other.display_)
-    , window_(other.window_)
-    , colormap_(other.colormap_)
+    : display_(std::exchange(other.display_, nullptr))
+    , window_(std::exchange(other.window_, 0))
+    , colormap_(std::exchange(other.colormap_, 0))
     , wmDeleteWindow_(other.wmDeleteWindow_)
-    , gc_(other.gc_)
-    , image_(other.image_)
-    , glContext_(other.glContext_)
+    , gc_(std::exchange(other.gc_, nullptr))
+    , image_(std::exchange(other.image_, nullptr))
+    , glContext_(std::exchange(other.glContext_, nullptr))
     , fbConfig_(other.fbConfig_)
     , windowDetails_(other.windowDetails_)
     , windowFlags_(other.windowFlags_)
@@ -50,24 +51,18 @@ X11WindowManager::X11WindowManager(X11WindowManager&& other) noexcept
     , mouseListener_(std::move(other.mouseListener_))
     , windowShouldClose_(other.windowShouldClose_)
 {
-    other.display_ = nullptr;
-    other.window_ = 0;
-    other.colormap_ = 0;
-    other.gc_ = nullptr;
-    other.image_ = nullptr;
-    other.glContext_ = nullptr;
 }
 
 X11WindowManager& X11WindowManager::operator=(X11WindowManager&& other) noexcept {
     if (this != &other) {
         destroy();
-        display_ = other.display_;
-        window_ = other.window_;
-        colormap_ = other.colormap_;
+        display_ = std::exchange(other.display_, nullptr);
+        window_ = std::exchange(other.window_, 0);
+        colormap_ = std::exchange(other.colormap_, 0);
         wmDeleteWindow_ = other.wmDeleteWindow_;
-        gc_ = other.gc_;
-        image_ = other.image_;
-        glContext_ = other.glContext_;
+        gc_ = std::exchange(other.gc_, nullptr);
+        image_ = std::exchange(other.image_, nullptr);
+        glContext_ = std::exchange(other.glContext_, nullptr);
         fbConfig_ = other.fbConfig_;
         windowDetails_ = other.windowDetails_;
         windowFlags_ = other.windowFlags_;
@@ -75,12 +70,6 @@ X11WindowManager& X11WindowManager::operator=(X11WindowManager&& other) noexcept
         keyboardListener_ = std::move(other.keyboardListener_);
         mouseListener_ = std::move(other.mouseListener_);
         windowShouldClose_ = other.windowShouldClose_;
-        other.display_ = nullptr;
-        other.window_ = 0;
-        other.colormap_ = 0;
-        other.gc_ = nullptr;
-        other.image_ = nullptr;
-        other.glContext_ = nullptr;
     }
     return *this;
 }
@@ -201,7 +190,7 @@ void X11WindowManager::initGL()
 
     glXMakeCurrent(display_, window_, static_cast<GLXContext>(glContext_));
 
-    // Best-effort vsync via GLX_EXT_swap_control.
+    //! Best-effort vsync via GLX_EXT_swap_control.
     using PFNGLXSWAPINTERVALEXTPROC = void (*)(Display*, GLXDrawable, int);
     auto swapIntervalEXT = reinterpret_cast<PFNGLXSWAPINTERVALEXTPROC>(glXGetProcAddressARB(reinterpret_cast<const GLubyte*>("glXSwapIntervalEXT")));
     
@@ -224,7 +213,7 @@ void X11WindowManager::allocateSoftwareImage(i32 width, i32 height)
     Visual* visual = DefaultVisual(display_, screen);
     const int depth = DefaultDepth(display_, screen);
 
-    // 32-bit ZPixmap buffer owned by the XImage (XDestroyImage frees data).
+    //! 32-bit ZPixmap buffer owned by the XImage (XDestroyImage frees data).
     auto* buffer = static_cast<char*>(std::malloc(static_cast<usize>(width) * height * 4));
     if (!buffer) 
         throw WMAException("Out of memory allocating software framebuffer");

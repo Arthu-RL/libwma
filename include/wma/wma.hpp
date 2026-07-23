@@ -17,6 +17,7 @@
 #include "input/mouse/MouseListener.hpp"
 #include "input/mouse/MouseAction.hpp"
 #include "managers/IWindowManager.hpp"
+#include "rendering/SoftwareRenderer.hpp"
 
 //! NOTE: concrete backend headers (SdlWindowManager.hpp, …) are intentionally NOT
 //! included here. They pull in backend SDK headers (SDL3, GLFW, Xlib, wayland) and

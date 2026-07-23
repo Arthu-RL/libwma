@@ -7,11 +7,13 @@
 
 namespace wma {
 
-// Fast callable: stores a raw function pointer + void* userdata for the zero-cost path
-// (free functions, static methods). Capturing lambdas are heap-allocated via
-// std::move_only_function and kept alive by storage_. The callable is always
-// invoked through fn(data) regardless of which path was used, so the hot-path
-// cost is a single null-check + one indirect call.
+/**
+ * @brief Fast callable: raw function pointer + void* userdata for the zero-cost path
+ * (free functions, static methods). Capturing lambdas are heap-allocated via
+ * std::move_only_function and kept alive by storage_. The callable is always
+ * invoked through fn(data) regardless of which path was used, so the hot-path
+ * cost is a single null-check + one indirect call.
+ */
 struct InputCallback {
     using Fn = void(*)(void*);
 
@@ -30,9 +32,9 @@ struct InputCallback {
 
     [[nodiscard]] bool valid() const noexcept { return fn != nullptr; }
 
-    // Wraps any callable (including move-only capturing lambdas) into the
-    // fast fn+data representation. Uses std::move_only_function to avoid
-    // requiring copyability of the callable.
+    //! Wraps any callable (including move-only capturing lambdas) into the
+    //! fast fn+data representation. Uses std::move_only_function to avoid
+    //! requiring copyability of the callable.
     static InputCallback from(wma::move_only_function<void()> callback);
 };
 

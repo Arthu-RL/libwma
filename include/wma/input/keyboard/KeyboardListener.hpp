@@ -22,7 +22,7 @@ public:
     KeyboardListener(KeyboardListener&&)                 = default;
     KeyboardListener& operator=(KeyboardListener&&)      = default;
 
-    // Context management
+    //! Context management.
     [[nodiscard]] InputContextId createContext();
     void setActiveContext(InputContextId context);
     void pushContext(InputContextId context);
@@ -30,11 +30,11 @@ public:
     [[nodiscard]] InputContextId getActiveContext()  const;
     [[nodiscard]] InputContextId getResolvedContext() const;
 
-    // Binding — default context (resolved at call time)
+    //! Binding — default context (resolved at call time).
     void addKeyAction(Key key, KeyAction action);
     void addKeyAction(i32 key, KeyAction action);
 
-    // Binding — explicit context
+    //! Binding — explicit context.
     void addKeyAction(Key key, KeyAction action, InputContextId context);
     void addKeyAction(i32 key, KeyAction action, InputContextId context);
 

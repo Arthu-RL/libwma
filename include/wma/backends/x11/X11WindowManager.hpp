@@ -51,8 +51,8 @@ private:
     XImage* image_;
 
     //! OpenGL via GLX (types kept opaque so this header needs no GL includes)
-    void* glContext_; //! GLXContext
-    void* fbConfig_; //! GLXFBConfig
+    void* glContext_; //!< GLXContext
+    void* fbConfig_; //!< GLXFBConfig
 
     WindowDetails windowDetails_;
     WindowFlags windowFlags_;
