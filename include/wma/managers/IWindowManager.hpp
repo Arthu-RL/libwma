@@ -10,6 +10,7 @@
 #include "../core/WindowFlags.hpp"
 #include "../input/keyboard/KeyboardListener.hpp"
 #include "../input/mouse/MouseListener.hpp"
+#include "../input/touch/TouchListener.hpp"
 
 namespace wma {
 
@@ -52,6 +53,45 @@ namespace wma {
         //! Native window handle (SDL_Window*, GLFWwindow*, X11 Window, wl_surface*).
         virtual void* getWindowInstance() = 0;
 
+        /**
+         * @brief Cheap, non-blocking check: is the platform's native surface
+         * currently attached to getWindowInstance()'s handle?
+         *
+         * Unlike waitUntilWindowReady() (which can block for seconds riding
+         * out startup/resume churn), this is meant to be polled every frame
+         * to decide whether to skip rendering entirely -- e.g. while an
+         * Android app is backgrounded and has no surface at all, there is
+         * nothing to wait for yet, so a renderer should check this first and
+         * only call waitUntilWindowReady() once it comes back.
+         *
+         * Always true on platforms without this failure mode (default).
+         */
+        [[nodiscard]] virtual bool isSurfaceAvailable() const { return true; }
+
+        /**
+         * @brief Blocks until getWindowInstance()'s handle is safe to build a
+         * graphics surface from, returning false if it never becomes so.
+         *
+         * On most platforms a created window is immediately usable and this is
+         * a no-op. Android is the exception: the OS destroys and re-creates the
+         * underlying native window around Activity lifecycle changes (and
+         * during the orientation settle at startup), on a *different* thread
+         * from the one running the app's main loop. A handle that looks valid
+         * can therefore already be released -- and platform Vulkan drivers
+         * dereference that freed window rather than failing cleanly, so
+         * creating a surface from it is a hard crash, not a recoverable error.
+         *
+         * Call this before creating a Vulkan/GL surface from
+         * getWindowInstance(). It narrows the race rather than eliminating it:
+         * the window can still be torn down immediately afterwards, so a
+         * renderer that must survive backgrounding still needs to handle
+         * surface loss and re-create its surface/swapchain.
+         *
+         * @return true when the window is present and has held a stable size
+         *         long enough to be trusted; false on timeout.
+         */
+        virtual bool waitUntilWindowReady() { return getWindowInstance() != nullptr; }
+
         //! Native display/connection handle (X11 Display*, wl_display*) or nullptr
         //! when the backend has no separate display object (SDL, GLFW).
         virtual void* getNativeDisplayHandle() const noexcept { return nullptr; }
@@ -72,6 +112,22 @@ namespace wma {
         virtual const std::vector<const char*> getVulkanExtensions() const = 0;
         virtual KeyboardListener& getKeyboardListener() noexcept = 0;
         virtual MouseListener& getMouseListener() noexcept = 0;
+
+        //! Per-finger touch input. Distinct from getMouseListener(): SDL can
+        //! synthesize mouse events from touch, but that collapses every finger
+        //! into one cursor -- see TouchListener's doc comment.
+        //!
+        //! Not pure virtual: only the SDL backend delivers touch today, and the
+        //! desktop-only X11/Wayland backends would otherwise be forced to
+        //! implement it for hardware they never see. They inherit this default,
+        //! whose listener simply never fires -- bindings on it are harmless
+        //! no-ops rather than a compile error or a null dereference.
+        virtual TouchListener& getTouchListener() noexcept { return inertTouchListener_; }
+
+    protected:
+        TouchListener inertTouchListener_;
+
+    public:
         virtual bool shouldClose() const = 0;
         virtual WindowBackend getBackendType() const = 0;
         virtual GraphicsAPI getGraphicsAPI() const = 0;
