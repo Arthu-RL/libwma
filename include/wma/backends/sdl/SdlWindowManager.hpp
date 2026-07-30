@@ -5,6 +5,7 @@
 
 #include "SDLMouseListener.hpp"
 #include "SDLKeyboardListener.hpp"
+#include "SDLTouchListener.hpp"
 #include "wma/managers/IWindowManager.hpp"
 
 struct SDL_Window;
@@ -28,6 +29,8 @@ namespace wma {
         void pollEvents() override;
         void swapBuffers() override;
         void* getWindowInstance() override;
+        bool waitUntilWindowReady() override;
+        [[nodiscard]] bool isSurfaceAvailable() const override;
         void* getNativeDisplayHandle() const noexcept override;
         void* getGLProcAddress(const char* name) const override;
         SoftwareFramebuffer lockFramebuffer() override;
@@ -38,6 +41,7 @@ namespace wma {
         const std::vector<const char*> getVulkanExtensions() const override;
         KeyboardListener& getKeyboardListener() noexcept override;
         MouseListener& getMouseListener() noexcept override;
+        TouchListener& getTouchListener() noexcept override;
         bool shouldClose() const override;
         WindowBackend getBackendType() const override;
         GraphicsAPI getGraphicsAPI() const override;
@@ -52,6 +56,14 @@ namespace wma {
         GraphicsAPI graphicsAPI_;
         std::unique_ptr<SDLKeyboardListener> keyboardListener_;
         std::unique_ptr<SDLMouseListener> mouseListener_;
+        std::unique_ptr<SDLTouchListener> touchListener_;
+
+#ifdef __ANDROID__
+        //! Last-seen ANativeWindow identity; pollEvents() compares against
+        //! this each call to detect surface teardown/recreation. See
+        //! WindowFlags::surfaceLost.
+        void* lastNativeWindow_ = nullptr;
+#endif
         bool windowShouldClose_;
         bool ownsSubsystem_; //!< this instance holds a reference to the SDL init
 

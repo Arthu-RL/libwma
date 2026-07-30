@@ -9,6 +9,8 @@
 #include <SDL3/SDL_vulkan.h>
 
 #include <atomic>
+#include <chrono>
+#include <thread>
 #include <utility>
 
 namespace wma {
@@ -28,6 +30,7 @@ namespace {
         , graphicsAPI_(graphicsAPI)
         , keyboardListener_(std::make_unique<SDLKeyboardListener>())
         , mouseListener_(std::make_unique<SDLMouseListener>())
+        , touchListener_(std::make_unique<SDLTouchListener>())
         , windowShouldClose_(false)
         , ownsSubsystem_(false)
     {
@@ -47,6 +50,7 @@ namespace {
         , graphicsAPI_(other.graphicsAPI_)
         , keyboardListener_(std::move(other.keyboardListener_))
         , mouseListener_(std::move(other.mouseListener_))
+        , touchListener_(std::move(other.touchListener_))
         , windowShouldClose_(other.windowShouldClose_)
         , ownsSubsystem_(std::exchange(other.ownsSubsystem_, false))
     {
@@ -63,6 +67,7 @@ namespace {
             graphicsAPI_ = other.graphicsAPI_;
             keyboardListener_ = std::move(other.keyboardListener_);
             mouseListener_ = std::move(other.mouseListener_);
+            touchListener_ = std::move(other.touchListener_);
             windowShouldClose_ = other.windowShouldClose_;
             ownsSubsystem_ = std::exchange(other.ownsSubsystem_, false);
         }
@@ -124,10 +129,33 @@ namespace {
 
         keyboardListener_->initialize(window_);
         mouseListener_->initialize(window_);
+        touchListener_->initialize(window_);
         INK_LOG << "SDL window created: " << windowName;
     }
 
     void SdlWindowManager::pollEvents() {
+#ifdef __ANDROID__
+        // Detect the ANativeWindow being torn down/replaced -- Android does
+        // this around Activity backgrounding/foregrounding without SDL
+        // exposing a dedicated queued event for it (SDL_EVENT_WILL_ENTER_*
+        // background/foreground events require a separate SDL_AddEventWatch
+        // callback, delivered on whatever thread posts them, which doesn't
+        // fit this single-threaded poll loop). Comparing this property each
+        // call is cheap and covers both directions: valid -> null (lost) and
+        // null -> a *different* valid pointer (recreated).
+        if (window_) 
+        {
+            void* currentNativeWindow = SDL_GetPointerProperty(
+                SDL_GetWindowProperties(window_), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr);
+    
+            if (currentNativeWindow != lastNativeWindow_) 
+            {
+                windowFlags_.surfaceLost = true;
+                lastNativeWindow_ = currentNativeWindow;
+            }
+        }
+#endif
+
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -151,6 +179,11 @@ namespace {
                 case SDL_EVENT_MOUSE_WHEEL:
                     mouseListener_->handleEvent(event);
                     break;
+                case SDL_EVENT_FINGER_DOWN:
+                case SDL_EVENT_FINGER_MOTION:
+                case SDL_EVENT_FINGER_UP:
+                    touchListener_->handleEvent(event);
+                    break;
                 default:
                     break;
             }
@@ -163,6 +196,73 @@ namespace {
     }
 
     void* SdlWindowManager::getWindowInstance() { return window_; }
+
+    bool SdlWindowManager::isSurfaceAvailable() const {
+#ifdef __ANDROID__
+        if (!window_) return false;
+        return SDL_GetPointerProperty(
+            SDL_GetWindowProperties(window_), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr) != nullptr;
+#else
+        return window_ != nullptr;
+#endif
+    }
+
+    bool SdlWindowManager::waitUntilWindowReady() {
+        if (!window_) return false;
+
+#ifdef __ANDROID__
+        using namespace std::chrono_literals;
+        constexpr int kMaxAttempts = 100;         // ~5s at 50ms, then give up rather than hang
+        constexpr int kRequiredStablePolls = 4;   // ~200ms unchanged before trusting it
+
+        int stablePolls = 0;
+        void* lastNativeWindow = nullptr;
+        int lastW = -1;
+        int lastH = -1;
+
+        for (int attempt = 0; attempt < kMaxAttempts; ++attempt) 
+        {
+            // Pumping is what makes this work: without it SDL never processes
+            // the surfaceDestroyed/surfaceChanged callbacks queued by the UI
+            // thread, so its cached native-window pointer stays *stale* --
+            // non-null but already released. Pumping lets SDL drop the dead
+            // window and pick up a genuinely current one. Safe here because
+            // SDL runs the app's main function on the thread owning its event
+            // queue, which is the thread calling this.
+            SDL_PumpEvents();
+
+            void* nativeWindow = SDL_GetPointerProperty(SDL_GetWindowProperties(window_), SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER, nullptr);
+
+            int w = 0;
+            int h = 0;
+            const bool usable = nativeWindow != nullptr
+                             && SDL_GetWindowSizeInPixels(window_, &w, &h)
+                             && w > 0 && h > 0;
+
+            // Require the *same* native window pointer across polls, not merely
+            // some non-null one: a pointer that changed since the last poll
+            // means SDL just swapped it out, so the churn hasn't settled yet.
+            if (usable && nativeWindow == lastNativeWindow && 
+                w == lastW && h == lastH) 
+            {
+                if (++stablePolls >= kRequiredStablePolls) 
+                    return true;
+            } 
+            else
+            {
+                stablePolls = 0;
+            }
+
+            lastNativeWindow = usable ? nativeWindow : nullptr;
+            lastW = usable ? w : -1;
+            lastH = usable ? h : -1;
+            std::this_thread::sleep_for(50ms);
+        }
+        return false;
+#else
+        return true;
+#endif
+    }
 
     void* SdlWindowManager::getNativeDisplayHandle() const noexcept { return nullptr; }
 
@@ -215,6 +315,7 @@ namespace {
 
     KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
     MouseListener& SdlWindowManager::getMouseListener() noexcept { return *mouseListener_; }
+    TouchListener& SdlWindowManager::getTouchListener() noexcept { return *touchListener_; }
     bool SdlWindowManager::shouldClose() const { return windowShouldClose_; }
     WindowBackend SdlWindowManager::getBackendType() const { return WindowBackend::SDL3; }
     GraphicsAPI SdlWindowManager::getGraphicsAPI() const { return graphicsAPI_; }
