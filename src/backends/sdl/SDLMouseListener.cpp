@@ -44,17 +44,27 @@ void SDLMouseListener::handleEvent(const SDL_Event& event)
         break;
     }
     case SDL_EVENT_MOUSE_MOTION: {
-        if (firstMouse_) {
-            lastPosition_ = WMAMousePosition(
-                static_cast<f64>(event.motion.x),
-                static_cast<f64>(event.motion.y)
-            );
-            firstMouse_ = false;
-        }
         f64 xpos = static_cast<f64>(event.motion.x);
         f64 ypos = static_cast<f64>(event.motion.y);
-        f64 deltaX = (xpos - lastPosition_.x) * sensitivity_;
-        f64 deltaY = (lastPosition_.y - ypos) * sensitivity_;
+
+        if (firstMouse_) {
+            // The first relative-motion event after enabling relative mode
+            // can report a spurious warp-to-center delta; discard it rather
+            // than rotate the camera on it.
+            lastPosition_ = WMAMousePosition(xpos, ypos);
+            firstMouse_ = false;
+            break;
+        }
+
+        // xrel/yrel are SDL's own relative-mouse-mode deltas, not a diff of
+        // two absolute positions: under relative mode the cursor is hidden
+        // and confined/warped by the platform, so event.motion.x/y is not a
+        // free, unbounded coordinate -- diffing it stalls at zero once the
+        // platform stops moving the confined cursor further (rotation gets
+        // stuck well short of a full look-around). xrel/yrel keep reporting
+        // the true motion regardless.
+        f64 deltaX = static_cast<f64>(event.motion.xrel) * sensitivity_;
+        f64 deltaY = -static_cast<f64>(event.motion.yrel) * sensitivity_;
         currentPosition_ = WMAMousePosition(xpos, ypos, deltaX, deltaY);
         dispatchMove(currentPosition_);
         lastPosition_ = WMAMousePosition(xpos, ypos);

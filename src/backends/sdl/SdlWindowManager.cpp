@@ -87,6 +87,20 @@ namespace {
                 throw GraphicsException("Unsupported graphics API for SDL");
         }
 
+#ifdef __EMSCRIPTEN__
+        // Emscripten's OpenGL backend is WebGL2 (Aura3D compiles with
+        // -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2, since its ES3-only
+        // entry points like glBindBufferBase need it). SDL_GL_CreateContext
+        // otherwise requests a default profile that maps to WebGL1, which
+        // the browser then refuses outright. Attributes must be set before
+        // SDL_CreateWindow when the window will host a GL context.
+        if (graphicsAPI_ == GraphicsAPI::OpenGL) {
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+            SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+        }
+#endif
+
         window_ = SDL_CreateWindow(
             windowName,
             windowDetails_.width, windowDetails_.height,
