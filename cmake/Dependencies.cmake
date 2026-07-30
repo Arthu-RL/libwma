@@ -1,3 +1,28 @@
+if(DEFINED ENV{LOCAL_PREFIX})
+    set(_WMA_SEARCH_PREFIX "$ENV{LOCAL_PREFIX}")
+else()
+    set(_WMA_SEARCH_PREFIX "/usr/local")
+endif()
+
+if(ANDROID)
+    set(_WMA_PLATFORM "android")
+elseif(EMSCRIPTEN)
+    set(_WMA_PLATFORM "wasm")
+else()
+    # libink's linux presets install to linux/debug or linux/release
+    # (single-config Ninja generator, so CMAKE_BUILD_TYPE is known here).
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(_WMA_PLATFORM "linux/debug")
+    else()
+        set(_WMA_PLATFORM "linux/release")
+    endif()
+endif()
+
+set(ink_DIR "${_WMA_SEARCH_PREFIX}/${_WMA_PLATFORM}/lib/cmake/ink")
+
+unset(_WMA_SEARCH_PREFIX)
+unset(_WMA_PLATFORM)
+
 find_package(ink REQUIRED CONFIG)
 
 # Backend options. Defaults are OFF so a build explicitly opts into what it needs;
