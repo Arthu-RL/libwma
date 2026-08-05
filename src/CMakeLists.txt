@@ -102,6 +102,10 @@ endif()
 
 target_link_libraries(wma PUBLIC ink::ink)
 
+if(NOT EMSCRIPTEN)
+    target_link_libraries(wma PRIVATE ink::threading)
+endif()
+
 if(WMA_ENABLE_SDL)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_SDL)
     target_link_libraries(wma PRIVATE SDL3::SDL3)
