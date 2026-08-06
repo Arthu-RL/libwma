@@ -1,7 +1,7 @@
 name: Release
 
 # Triggered by pushing a version tag, e.g.:
-#   git tag v0.2.0 && git push origin v0.2.0
+#   git tag v0.1.0 && git push origin v0.1.0
 #
 # Builds libwma.a/wma.lib (+ public headers + CMake package config) for
 # Linux, Android, WebAssembly, and Windows, then attaches one archive per
@@ -39,8 +39,7 @@ jobs:
 
       - name: Extract CHANGELOG section
         # Pulls the "## [X.Y.Z]" ... section up to the next "## [" heading
-        # (or EOF) out of CHANGELOG.md, keyed off the pushed tag (v0.2.0 ->
-        # 0.2.0)
+        # (or EOF) out of CHANGELOG.md
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"

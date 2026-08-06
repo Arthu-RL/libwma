@@ -2,28 +2,17 @@
 
 All notable changes to libwma are documented in this file.
 
-## [0.2.0]
-
-### Added
-- **Release pipeline**: tagging `vX.Y.Z` now runs `.github/workflows/release.yml`, packaging `libwma.a`/`wma.lib` (+ public headers + CMake package config) for Linux, Android, WebAssembly and Windows and attaching one archive per platform to a draft GitHub Release
-- **Windows CI**: a `windows-build` job (`.github/workflows/ci.yml`) builds wma on `windows-latest`, building its `ink` dependency from source since the `vulkan-dev` container image (used for Linux/Android/WASM) has no Windows equivalent
-
-### Fixed
-- `cmake/Platform.cmake` now sets `NOMINMAX`/`WIN32_LEAN_AND_MEAN` and, under MSVC, `/EHsc`/`/utf-8`/`/Zc:__cplusplus` for Windows targets — matching upstream ink's own Windows fixes — so `<windows.h>`'s `min`/`max`/`ERROR` macros no longer collide with `std::min`/`std::max`/`WmaCode::Error`, and `ink_base.hpp`'s `#if __cplusplus < 202100L` C++23 guard no longer trips on cl.exe misreporting `__cplusplus` as `199711L`
-- `cmake/Dependencies.cmake` now forces `WMA_ENABLE_X11`/`WMA_ENABLE_WAYLAND` off on Windows (those protocols don't exist there; only SDL3/GLFW do), matching the existing Android/WASM guard instead of failing at `find_package()`
-- The `windows-debug`/`windows-release` CMake presets previously enabled no backend at all (`createWindowManager()` would always throw); they now enable `WMA_ENABLE_SDL`/`WMA_ENABLE_GLFW`, mirroring the Linux presets' "enable everything this platform supports" approach
-- The Windows CI/release jobs now configure with `-G Ninja` plus `ilammy/msvc-dev-cmd`/`seanmiddleditch/gha-setup-ninja` instead of the Visual Studio generator, matching upstream ink's own fix for the same pipeline
-- Linked `ink::threading` explicitly instead of relying on it coming in transitively through `ink::ink`, matching upstream ink's split of threading into its own exported target
-- Software rendering (`parallelFill()`) now falls back to single-threaded row dispatch on WebAssembly instead of using `ink::ThreadPool`, so wma's WASM build no longer requires `ink::threading` and, in turn, no longer needs `-pthread`/SharedArrayBuffer/COOP-COEP
-
 ## [0.1.0]
 
 ### Added
 - Multiple window-management backends: GLFW, SDL3, X11, Wayland
 - Multiple graphics API support: OpenGL, Vulkan, and software (CPU) rendering
 - Cross-platform support: Linux, Windows, macOS, Android (SDL3) and WebAssembly (SDL3)
-- Parallel software rendering (`parallelFill()`) spreading CPU pixel work across hardware threads
+- Parallel software rendering (`parallelFill()`) spreading CPU pixel work across hardware threads, falling back to a single-threaded row dispatch on WebAssembly (so the WASM build needs neither `ink::threading` nor `-pthread`/SharedArrayBuffer/COOP-COEP)
 - Keyboard, mouse and touch input listeners with zero-alloc, layered input contexts
 - Wayland server-side decorations via `xdg-decoration-unstable-v1`
 - CMake presets for desktop (Linux/Windows debug & release), Android and WASM builds
-- `find_package(wma)` CMake package config with runtime/compile-time backend querying (`BuildConfig.hpp`)
+- `find_package(wma)` CMake package config with runtime/compile-time backend querying (`BuildConfig.hpp`), linking `ink::ink` and `ink::threading` explicitly
+- Windows support: `cmake/Platform.cmake` sets `NOMINMAX`/`WIN32_LEAN_AND_MEAN` and, under MSVC, `/EHsc`/`/utf-8`/`/Zc:__cplusplus`; `cmake/Dependencies.cmake` forces `WMA_ENABLE_X11`/`WMA_ENABLE_WAYLAND` off there (only SDL3/GLFW exist on Windows); the `windows-debug`/`windows-release` CMake presets enable `WMA_ENABLE_SDL`/`WMA_ENABLE_GLFW`
+- Release pipeline: tagging `vX.Y.Z` runs `.github/workflows/release.yml`, packaging `libwma.a`/`wma.lib` (+ public headers + CMake package config) for Linux, Android, WebAssembly and Windows, attaching one archive per platform to a draft GitHub Release
+- Windows CI: a `windows-build` job (`.github/workflows/ci.yml`) builds wma on `windows-latest` via Ninja + `ilammy/msvc-dev-cmd`/`seanmiddleditch/gha-setup-ninja`, building its `ink` dependency from source since the `vulkan-dev` container image (used for Linux/Android/WASM) has no Windows equivalent
