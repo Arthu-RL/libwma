@@ -2,6 +2,17 @@
 
 All notable changes to libwma are documented in this file.
 
+## [0.2.0]
+
+### Added
+- **Release pipeline**: tagging `vX.Y.Z` now runs `.github/workflows/release.yml`, packaging `libwma.a`/`wma.lib` (+ public headers + CMake package config) for Linux, Android, WebAssembly and Windows and attaching one archive per platform to a draft GitHub Release
+- **Windows CI**: a `windows-build` job (`.github/workflows/ci.yml`) builds wma on `windows-latest`/VS 2022, building its `ink` dependency from source since the `vulkan-dev` container image (used for Linux/Android/WASM) has no Windows equivalent
+
+### Fixed
+- `cmake/Platform.cmake` now sets `NOMINMAX`/`WIN32_LEAN_AND_MEAN` and, under MSVC, `/EHsc`/`/utf-8` for Windows targets — matching upstream ink's own Windows fixes — so `<windows.h>`'s `min`/`max`/`ERROR` macros no longer collide with `std::min`/`std::max`/`WmaCode::Error`
+- `cmake/Dependencies.cmake` now forces `WMA_ENABLE_X11`/`WMA_ENABLE_WAYLAND` off on Windows (those protocols don't exist there; only SDL3/GLFW do), matching the existing Android/WASM guard instead of failing at `find_package()`
+- The `windows-debug`/`windows-release` CMake presets previously enabled no backend at all (`createWindowManager()` would always throw); they now enable `WMA_ENABLE_SDL`/`WMA_ENABLE_GLFW`, mirroring the Linux presets' "enable everything this platform supports" approach
+
 ## [0.1.1]
 
 ### Fixed

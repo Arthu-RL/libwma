@@ -45,6 +45,19 @@ if(ANDROID OR EMSCRIPTEN)
     endforeach()
 endif()
 
+# X11/Wayland are Linux windowing protocols; only SDL3/GLFW exist on Windows.
+if(WIN32 AND NOT EMSCRIPTEN)
+    foreach(_backend X11 WAYLAND)
+        if(WMA_ENABLE_${_backend})
+            message(WARNING
+                "[wma] WMA_ENABLE_${_backend} is not supported on Windows — "
+                "forcing OFF (use SDL3/GLFW)"
+            )
+        endif()
+        set(WMA_ENABLE_${_backend} OFF CACHE BOOL "" FORCE)
+    endforeach()
+endif()
+
 if(NOT WMA_ENABLE_SDL AND NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_X11 AND NOT WMA_ENABLE_WAYLAND)
     message(WARNING
         "[wma] No backend enabled — the library will build but createWindowManager() "

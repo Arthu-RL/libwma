@@ -46,7 +46,10 @@
       "installDir": "$env{LOCAL_PREFIX}/windows/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/windows/debug"
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/windows/debug",
+        "WMA_BUILD_EXAMPLES": "ON",
+        "WMA_ENABLE_SDL": "ON",
+        "WMA_ENABLE_GLFW": "ON"
       }
     },
     {
@@ -56,7 +59,10 @@
       "installDir": "$env{LOCAL_PREFIX}/windows/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/windows/release"
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/windows/release",
+        "WMA_BUILD_EXAMPLES": "ON",
+        "WMA_ENABLE_SDL": "ON",
+        "WMA_ENABLE_GLFW": "ON"
       }
     },
     {
