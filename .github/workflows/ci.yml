@@ -182,3 +182,76 @@ jobs:
 
       - name: Build
         run: cmake --build build-android --parallel
+
+  windows-build:
+    name: Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout wma
+        uses: actions/checkout@v4
+        with:
+          path: wma
+
+      - name: Checkout ink
+        # windows-latest has no vulkan-dev container to pull a prebuilt ink
+        # from (unlike the Linux/Android/WASM jobs above), so build+install
+        # the ink dependency from source here into a local prefix; wma's own
+        # Configure step below points CMAKE_PREFIX_PATH at it.
+        uses: actions/checkout@v4
+        with:
+          repository: Arthu-RL/libink
+          ref: main
+          path: ink
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
+      - name: Install dependencies (vcpkg)
+        # windows-latest ships vcpkg preinstalled at $VCPKG_INSTALLATION_ROOT.
+        # nlohmann_json is ink's dependency; SDL3/GLFW are wma's. The static
+        # triplet matches the /MT-equivalent static-library build both
+        # libraries produce.
+        run: >
+          vcpkg install
+          nlohmann-json:x64-windows-static
+          sdl3:x64-windows-static
+          glfw3:x64-windows-static
+
+      - name: Configure ink
+        run: >
+          cmake -S ink -B ink/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          -DINK_BUILD_TESTS=OFF
+          -DINK_NATIVE_OPTIMIZE=OFF
+
+      - name: Build ink
+        run: cmake --build ink/build --parallel
+
+      - name: Install ink
+        run: cmake --install ink/build --prefix ink/stage
+
+      - name: Configure wma
+        # WMA_ENABLE_X11/WAYLAND are Linux-only (cmake/Dependencies.cmake
+        # forces them off on Windows) so only SDL3/GLFW are requested here.
+        run: >
+          cmake -S wma -B wma/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/ink/stage"
+          -DWMA_BUILD_EXAMPLES=ON
+          -DWMA_BUILD_TESTS=OFF
+          -DWMA_ENABLE_SDL=ON
+          -DWMA_ENABLE_GLFW=ON
+
+      - name: Build wma
+        run: cmake --build wma/build --parallel

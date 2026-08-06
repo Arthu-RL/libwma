@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.3.3)
 
 project(wma
-VERSION 1.0.0
+VERSION 0.1.0
 LANGUAGES C CXX
 )
 

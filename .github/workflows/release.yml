@@ -1,0 +1,321 @@
+name: Release
+
+# Triggered by pushing a version tag, e.g.:
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# Builds libwma.a/wma.lib (+ public headers + CMake package config) for
+# Linux, Android, WebAssembly, and Windows, then attaches one archive per
+# platform to a GitHub Release. These are separate binaries for separate
+# toolchains/ABIs; there is no single artifact that covers all four.
+#
+# wma has ink as a PUBLIC dependency but does not merge it into its own
+# archive consistent with ink's own release (which has nothing to merge
+# either): each library in the wma/ink layer ships itself only, and
+# wmaConfig.cmake keeps `find_dependency(ink)` (plus SDL3/GLFW/X11/Wayland,
+# whichever were enabled) as external requirements a consumer resolves
+# themselves. Only a top-level consumer that embeds this as its final
+# shipped binary (e.g. Aura3D) is expected to flatten the whole chain into
+# one self-contained archive.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract CHANGELOG section
+        # Pulls the "## [X.Y.Z]" ... section up to the next "## [" heading
+        # (or EOF) out of CHANGELOG.md
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+
+          awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ ("\\[" ver "\\]")) { found=1; next }
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > release_notes.md
+
+          if [[ ! -s release_notes.md ]]; then
+            echo " No CHANGELOG.md section found for version $VERSION" >&2
+            exit 1
+          fi
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file release_notes.md \
+            --draft
+
+  linux-release:
+    name: Package Linux
+    needs: create-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: arthurrl/vulkan-dev:lts
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        # All three native desktop backends are enabled so the shipped
+        # archive lets a consumer pick any of them at their own link time
+        # (wmaConfig.cmake's find_dependency() calls mirror whichever of
+        # these were ON here). WMA_NATIVE_OPTIMIZE already defaults OFF
+        # (see root CMakeLists.txt) so it needs no override, unlike ink's
+        # equivalent flag.
+        run: >
+          cmake -S . -B build/linux/release -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DWMA_BUILD_TESTS=OFF
+          -DWMA_ENABLE_SDL=ON
+          -DWMA_ENABLE_X11=ON
+          -DWMA_ENABLE_WAYLAND=ON
+
+      - name: Build
+        run: cmake --build build/linux/release --parallel
+
+      - name: Install
+        run: cmake --install build/linux/release --prefix stage/wma-linux-x86_64
+
+      - name: Package
+        run: |
+          tar -C stage -czf wma-${{ github.ref_name }}-linux-x86_64.tar.gz \
+            wma-linux-x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: wma-${{ github.ref_name }}-linux-x86_64.tar.gz
+          retention-days: 1
+
+  android-release:
+    name: Package Android
+    needs: create-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: arthurrl/vulkan-dev:lts
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        # Mirrors ci.yml's android-build job -- see its Configure step for why
+        # CMAKE_PREFIX_PATH/CMAKE_FIND_ROOT_PATH_MODE_PACKAGE are set this way.
+        # No WMA_ENABLE_* flags: cmake/Platform.cmake force-enables SDL3 (the
+        # sole Android backend) and forces the rest off.
+        run: >
+          cmake -S . -B build-android -G Ninja
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+          -DANDROID_ABI=arm64-v8a
+          -DANDROID_PLATFORM=android-29
+          -DANDROID_STL=c++_shared
+          -DCMAKE_BUILD_TYPE=Release
+          -DWMA_BUILD_TESTS=OFF
+          -DCMAKE_PREFIX_PATH="/usr/local/android;/usr/local"
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH
+
+      - name: Build
+        run: cmake --build build-android --parallel
+
+      - name: Install
+        run: cmake --install build-android --prefix stage/wma-android-arm64-v8a
+
+      - name: Package
+        run: |
+          tar -C stage -czf wma-${{ github.ref_name }}-android-arm64-v8a.tar.gz \
+            wma-android-arm64-v8a
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-v8a
+          path: wma-${{ github.ref_name }}-android-arm64-v8a.tar.gz
+          retention-days: 1
+
+  wasm-release:
+    name: Package WASM
+    needs: create-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: arthurrl/vulkan-dev:lts
+      credentials:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        # Mirrors ci.yml's wasm-build job. No WMA_ENABLE_* flags for the same
+        # reason as android-release above -- SDL3 is force-enabled.
+        run: |
+          source /opt/emsdk/emsdk_env.sh
+          emcmake cmake -S . -B build-wasm \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWMA_BUILD_TESTS=OFF \
+            -DCMAKE_PREFIX_PATH="/usr/local/wasm;/usr/local" \
+            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH
+
+      - name: Build
+        run: |
+          source /opt/emsdk/emsdk_env.sh
+          cmake --build build-wasm --parallel
+
+      - name: Install
+        run: cmake --install build-wasm --prefix stage/wma-wasm
+
+      - name: Package
+        run: |
+          tar -C stage -czf wma-${{ github.ref_name }}-wasm.tar.gz wma-wasm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: wma-${{ github.ref_name }}-wasm.tar.gz
+          retention-days: 1
+
+  windows-release:
+    name: Package Windows
+    needs: create-release
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout wma
+        uses: actions/checkout@v4
+        with:
+          path: wma
+
+      - name: Checkout ink
+        # windows-latest has no vulkan-dev container to pull a prebuilt ink
+        # from (unlike the Linux/Android/WASM jobs above), so build+install
+        # the ink dependency from source here into a local prefix; wma's own
+        # Configure step below points CMAKE_PREFIX_PATH at it.
+        uses: actions/checkout@v4
+        with:
+          repository: Arthu-RL/libink
+          ref: main
+          path: ink
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
+      - name: Install dependencies (vcpkg)
+        # windows-latest ships vcpkg preinstalled at $VCPKG_INSTALLATION_ROOT.
+        # nlohmann_json is ink's dependency; SDL3/GLFW are wma's -- both
+        # native desktop backends are packaged here, matching linux-release's
+        # "enable everything this platform supports" approach (X11/Wayland
+        # have no Windows equivalent). The static triplet matches the
+        # /MT-equivalent static-library build both libraries produce.
+        run: >
+          vcpkg install
+          nlohmann-json:x64-windows-static
+          sdl3:x64-windows-static
+          glfw3:x64-windows-static
+
+      - name: Configure ink
+        run: >
+          cmake -S ink -B ink/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          -DINK_BUILD_TESTS=OFF
+          -DINK_NATIVE_OPTIMIZE=OFF
+
+      - name: Build ink
+        run: cmake --build ink/build --parallel
+
+      - name: Install ink
+        run: cmake --install ink/build --prefix ink/stage
+
+      - name: Configure wma
+        # WMA_ENABLE_X11/WAYLAND are Linux-only (cmake/Dependencies.cmake
+        # forces them off on Windows) so only SDL3/GLFW are requested here.
+        # WMA_NATIVE_OPTIMIZE already defaults OFF (see root CMakeLists.txt)
+        # so it needs no override, unlike ink's equivalent flag.
+        run: >
+          cmake -S wma -B wma/build/windows/release -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/ink/stage"
+          -DWMA_BUILD_TESTS=OFF
+          -DWMA_ENABLE_SDL=ON
+          -DWMA_ENABLE_GLFW=ON
+
+      - name: Build wma
+        run: cmake --build wma/build/windows/release --parallel
+
+      - name: Install wma
+        run: cmake --install wma/build/windows/release --prefix stage/wma-windows-x86_64
+
+      - name: Package
+        run: |
+          cd stage
+          7z a -tzip "../wma-${{ github.ref_name }}-windows-x86_64.zip" wma-windows-x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: wma-${{ github.ref_name }}-windows-x86_64.zip
+          retention-days: 1
+
+  publish-release:
+    name: Publish release
+    needs: [linux-release, android-release, wasm-release, windows-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload assets and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" artifacts/*/*.tar.gz artifacts/*/*.zip \
+            --repo "${{ github.repository }}"
+          gh release edit "${{ github.ref_name }}" --draft=false \
+            --repo "${{ github.repository }}"
