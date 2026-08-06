@@ -205,6 +205,14 @@ jobs:
           ref: main
           path: ink
 
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
       - name: Install dependencies (vcpkg)
         # windows-latest ships vcpkg preinstalled at $VCPKG_INSTALLATION_ROOT.
         # nlohmann_json is ink's dependency; SDL3/GLFW are wma's. The static
@@ -218,31 +226,32 @@ jobs:
 
       - name: Configure ink
         run: >
-          cmake -S ink -B ink/build -G "Visual Studio 17 2022" -A x64
+          cmake -S ink -B ink/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows-static
           -DINK_BUILD_TESTS=OFF
           -DINK_NATIVE_OPTIMIZE=OFF
 
       - name: Build ink
-        run: cmake --build ink/build --config Release --parallel
+        run: cmake --build ink/build --parallel
 
       - name: Install ink
-        run: cmake --install ink/build --config Release --prefix ink/stage
+        run: cmake --install ink/build --prefix ink/stage
 
       - name: Configure wma
         # WMA_ENABLE_X11/WAYLAND are Linux-only (cmake/Dependencies.cmake
         # forces them off on Windows) so only SDL3/GLFW are requested here.
         run: >
-          cmake -S wma -B wma/build -G "Visual Studio 17 2022" -A x64
+          cmake -S wma -B wma/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows-static
           -DCMAKE_PREFIX_PATH="${{ github.workspace }}/ink/stage"
-          -DCMAKE_BUILD_TYPE=Release
           -DWMA_BUILD_EXAMPLES=ON
           -DWMA_BUILD_TESTS=OFF
           -DWMA_ENABLE_SDL=ON
           -DWMA_ENABLE_GLFW=ON
 
       - name: Build wma
-        run: cmake --build wma/build --config Release --parallel
+        run: cmake --build wma/build --parallel
