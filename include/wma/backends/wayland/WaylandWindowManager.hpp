@@ -34,6 +34,8 @@ public:
     const WindowDetails* getWindowDetails() noexcept override;
     const std::vector<const char*> getVulkanExtensions() const override;
     KeyboardListener& getKeyboardListener() noexcept override;
+    void setTextInputEnabled(bool enabled) noexcept override;
+    [[nodiscard]] bool isTextInputEnabled() const noexcept override;
     MouseListener& getMouseListener() noexcept override;
     bool shouldClose() const override;
     WindowBackend getBackendType() const override;

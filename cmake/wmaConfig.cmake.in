@@ -32,6 +32,16 @@ if(@WMA_ENABLE_WAYLAND@)
     endif()
 endif()
 
+# The ALSA audio backend. Needed here even though it is linked PRIVATE: wma is a
+# static library, so its private dependencies still have to resolve at the
+# consumer's final link and CMake carries them in the exported interface as
+# $<LINK_ONLY:PkgConfig::ALSA>. Without this, configuring a consumer fails with
+# "target PkgConfig::ALSA not found".
+if(@WMA_ENABLE_ALSA@)
+    find_dependency(PkgConfig)
+    pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/wma-targets.cmake")
 
 check_required_components(wma)

@@ -17,4 +17,18 @@
 #cmakedefine01 WMA_HAS_X11
 #cmakedefine01 WMA_HAS_WAYLAND
 
+//! Audio backends. A separate axis from the windowing backends above: a window
+//! opened through any of them can pair with any audio device. WMA_HAS_SDL
+//! covers SDL3's audio half as well as its windowing half — one dependency,
+//! two subsystems. There is no flag for the null audio device: it is always
+//! compiled in, so AudioBackend::Null is unconditionally available.
+#cmakedefine01 WMA_HAS_ALSA
+
+//! Whether GraphicsAPI::Metal can be honoured by this build: an Apple target with
+//! at least one backend that has a route to a CAMetalLayer (SDL3 anywhere, GLFW
+//! on macOS). Unlike the four flags above this is not a straight copy of a
+//! WMA_ENABLE_* option — it depends on the target platform too — so test this
+//! rather than re-deriving it from __APPLE__ plus the backend list.
+#cmakedefine01 WMA_HAS_METAL
+
 #endif // WMA_CORE_BUILD_CONFIG_HPP

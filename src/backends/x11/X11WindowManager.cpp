@@ -6,6 +6,9 @@
 #include <cstring>
 #include <utility>
 
+//! For XkbSetDetectableAutoRepeat; see createWindow().
+#include <X11/XKBlib.h>
+
 #ifdef WMA_X11_HAS_GL
 #include <GL/glx.h>
 #endif
@@ -76,6 +79,19 @@ X11WindowManager& X11WindowManager::operator=(X11WindowManager&& other) noexcept
 
 void X11WindowManager::createWindow(const char* windowName)
 {
+    /*
+     * Rejected up front rather than through a switch: this backend dispatches on
+     * graphicsAPI_ with if/else chains, so an unhandled value would quietly open
+     * an ordinary X window and leave getMetalLayer() returning nullptr -- the
+     * failure would then surface inside the renderer, several layers away from
+     * the mistaken setting that caused it.
+     */
+    if (graphicsAPI_ == GraphicsAPI::Metal) {
+        throw GraphicsException(
+            "Metal is an Apple-only graphics API and X11 is a Linux/Unix display "
+            "protocol; the two can never pair (use Vulkan/OpenGL/CPU)");
+    }
+
     display_ = XOpenDisplay(nullptr);
     if (!display_) {
         throw WindowException("Failed to open X11 display (is DISPLAY set?)");
@@ -130,9 +146,13 @@ void X11WindowManager::createWindow(const char* windowName)
 #endif
 
     XSetWindowAttributes windowAttributes{};
+    //! FocusChangeMask is what lets held keys be cleared on focus loss (see
+    //! pollEvents): releases that happen while another window has focus are
+    //! never delivered here, so a modifier held through an Alt-Tab would
+    //! otherwise stay down forever.
     windowAttributes.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask |
                                   ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
-                                  StructureNotifyMask;
+                                  StructureNotifyMask | FocusChangeMask;
     unsigned long valueMask = CWEventMask;
     if (colormap_) {
         windowAttributes.colormap = colormap_;
@@ -167,6 +187,20 @@ void X11WindowManager::createWindow(const char* windowName)
     XFlush(display_);
 
     keyboardListener_->initialize(display_);
+
+    /*
+     * Without detectable auto-repeat the server brackets every repeat with a
+     * synthetic KeyRelease/KeyPress pair, so a held key looks like a stream of
+     * fresh presses -- bound actions would re-fire, and the listener could not
+     * tell a repeat from a genuine press. Best-effort: an ancient server
+     * without XKB simply leaves `supported` False and behaves as before.
+     */
+    Bool detectableAutoRepeatSupported = False;
+    XkbSetDetectableAutoRepeat(display_, True, &detectableAutoRepeatSupported);
+
+    //! After the window exists: the input context is bound to it.
+    keyboardListener_->attachWindow(window_);
+
     mouseListener_->initialize(display_, window_);
 
     if (graphicsAPI_ == GraphicsAPI::OpenGL) 
@@ -245,6 +279,17 @@ void X11WindowManager::pollEvents()
     while (XPending(display_) > 0) {
         XEvent event;
         XNextEvent(display_, &event);
+
+        /*
+         * Offered to the input method first, as XFilterEvent's contract
+         * requires. A keystroke being composed (a dead key, or an IME
+         * candidate selection) is consumed here and must not also be handled
+         * as an ordinary key press, or a compose sequence would both compose
+         * *and* type its raw keys.
+         */
+        if (keyboardListener_->filterEvent(&event))
+            continue;
+
         handleWindowEvent(&event);
 
         switch (event.type) {
@@ -253,6 +298,10 @@ void X11WindowManager::pollEvents()
             case KeyPress:
             case KeyRelease:
                 keyboardListener_->handleKeyEvent(XLookupKeysym(&event.xkey, 0), event.xkey);
+                break;
+            case FocusOut:
+                //! See FocusChangeMask in createWindow().
+                keyboardListener_->releaseAllKeys();
                 break;
             case ButtonPress:
             case ButtonRelease:
@@ -338,6 +387,16 @@ const std::vector<const char*> X11WindowManager::getVulkanExtensions() const {
 WindowFlags* X11WindowManager::getWindowFlags() noexcept { return &windowFlags_; }
 const WindowDetails* X11WindowManager::getWindowDetails() noexcept { return &windowDetails_; }
 KeyboardListener& X11WindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
+
+void X11WindowManager::setTextInputEnabled(bool enabled) noexcept {
+    //! Recorded only: the XIC is opened once in createWindow() rather than
+    //! toggled per field. See IWindowManager::setTextInputEnabled.
+    if (keyboardListener_) keyboardListener_->setTextInputEnabled(enabled);
+}
+
+bool X11WindowManager::isTextInputEnabled() const noexcept {
+    return keyboardListener_ && keyboardListener_->isTextInputEnabled();
+}
 MouseListener& X11WindowManager::getMouseListener() noexcept { return *mouseListener_; }
 bool X11WindowManager::shouldClose() const { return windowShouldClose_; }
 WindowBackend X11WindowManager::getBackendType() const { return WindowBackend::X11; }

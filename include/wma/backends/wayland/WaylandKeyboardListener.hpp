@@ -4,8 +4,27 @@
 #include "wma/input/keyboard/KeyboardListener.hpp"
 #include <wayland-client.h>
 
+//! Opaque xkb types, forward-declared so xkbcommon stays out of this header
+//! and therefore off every consumer's include path.
+struct xkb_context;
+struct xkb_keymap;
+struct xkb_state;
+struct xkb_compose_table;
+struct xkb_compose_state;
+
 namespace wma {
 
+/**
+ * @class WaylandKeyboardListener
+ *
+ * @brief Wayland keyboard input, with layout-correct text via xkbcommon.
+ *
+ * Wayland deliberately ships no keycode-to-character mapping of its own: the
+ * compositor hands each client a keymap and expects the client to do its own
+ * translation. This listener builds an xkb keymap and state from that
+ * handover, which is what turns a raw evdev keycode into text at all -- and,
+ * through xkb's compose table, what makes dead keys and the Compose key work.
+ */
 class WaylandKeyboardListener : public KeyboardListener {
 public:
     WaylandKeyboardListener();
@@ -13,6 +32,11 @@ public:
 
     void initialize(wl_keyboard* keyboard);
     wl_keyboard* getKeyboard() const { return keyboard_; }
+
+    //! Bookkeeping only: there is no on-screen keyboard to raise here, and the
+    //! keymap is live from the moment the compositor sends it.
+    void setTextInputEnabled(bool enabled) noexcept { textInputEnabled_ = enabled; }
+    [[nodiscard]] bool isTextInputEnabled() const noexcept { return textInputEnabled_; }
 
     void handleKeymap(u32 format, i32 fd, u32 size);
     void handleEnter(u32 serial, wl_surface* surface, wl_array* keys);
@@ -23,7 +47,28 @@ public:
     void handleRepeatInfo(i32 rate, i32 delay);
 
 private:
+    /**
+     * @brief Runs @p keycode through the compose table, then emits its text.
+     *
+     * Compose is consulted first because a dead key must produce *nothing* on
+     * its own and then the composed character on the following keystroke;
+     * asking xkb for the raw UTF-8 first would type both halves.
+     */
+    void composeAndDispatchText(u32 keycode);
+
+    void destroyXkb() noexcept;
+
     wl_keyboard* keyboard_ = nullptr;
+
+    xkb_context* xkbContext_ = nullptr;
+    xkb_keymap* xkbKeymap_ = nullptr;
+    xkb_state* xkbState_ = nullptr;
+    //! Null when the locale defines no compose sequences, which is not an
+    //! error -- text then bypasses compose entirely.
+    xkb_compose_table* composeTable_ = nullptr;
+    xkb_compose_state* composeState_ = nullptr;
+
+    bool textInputEnabled_ = false;
 
     static const wl_keyboard_listener keyboardListener_;
 

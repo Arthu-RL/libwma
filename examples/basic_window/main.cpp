@@ -24,6 +24,7 @@ const char* toString(wma::GraphicsAPI api) {
         case wma::GraphicsAPI::OpenGL: return "OpenGL";
         case wma::GraphicsAPI::Vulkan: return "Vulkan";
         case wma::GraphicsAPI::CPU:    return "CPU (software)";
+        case wma::GraphicsAPI::Metal:  return "Metal";
         default:                       return "Unknown";
     }
 }
@@ -77,13 +78,22 @@ int main(int argc, char** argv) {
         INK_LOG << "Graphics: " << toString(windowManager->getGraphicsAPI());
 
         // Graphics-API interop surface
-        if (windowManager->getGraphicsAPI() == wma::GraphicsAPI::Vulkan) {
+        if (windowManager->getGraphicsAPI() == wma::GraphicsAPI::Vulkan) 
+        {
             for (const char* ext : windowManager->getVulkanExtensions()) {
                 INK_LOG << "  required Vulkan instance extension: " << ext;
             }
-        } else if (windowManager->getGraphicsAPI() == wma::GraphicsAPI::OpenGL) {
+        } 
+        else if (windowManager->getGraphicsAPI() == wma::GraphicsAPI::OpenGL) 
+        {
             void* glClearAddr = windowManager->getGLProcAddress("glClear");
             INK_LOG << "  glClear resolved via getGLProcAddress: " << (glClearAddr != nullptr);
+        } 
+        else if (windowManager->getGraphicsAPI() == wma::GraphicsAPI::Metal) 
+        {
+            //! The CAMetalLayer is the whole interop surface for Metal: a renderer
+            //! sets its device and pixel format, then draws to its drawables.
+            INK_LOG << "  CAMetalLayer: " << windowManager->getMetalLayer();
         }
 
         INK_LOG << "  native window handle:  " << windowManager->getWindowInstance();
@@ -244,17 +254,22 @@ int main(int argc, char** argv) {
             }
 
             // Software rendering: paint an animated gradient into the framebuffer.
-            // wma::parallelFill() spreads the per-pixel work across CPU cores (one
-            // row-band per hardware thread) instead of walking every pixel serially.
+            // Walked serially, one row at a time -- wma hands back the raw surface
+            // and stops there; a real renderer wanting this in parallel would
+            // spread it across its own worker pool, the way Aura3D's
+            // CpuFrameBufferManager does, rather than wma owning one on its behalf.
             wma::SoftwareFramebuffer fb = windowManager->lockFramebuffer();
             if (fb.valid()) {
                 const auto t = static_cast<u32>(frameCount);
-                wma::parallelFill(fb, [t](i32 x, i32 y) -> u32 {
-                    const u32 r = static_cast<u32>(x + t) & 0xFF;
-                    const u32 g = static_cast<u32>(y + t) & 0xFF;
-                    const u32 b = (t >> 1) & 0xFF;
-                    return (r << 16) | (g << 8) | b; // XRGB8888
-                });
+                for (i32 y = 0; y < fb.height; ++y) {
+                    auto* row = reinterpret_cast<u32*>(static_cast<u8*>(fb.pixels) + static_cast<size_t>(y) * fb.pitch);
+                    for (i32 x = 0; x < fb.width; ++x) {
+                        const u32 r = static_cast<u32>(x + static_cast<i32>(t)) & 0xFF;
+                        const u32 g = static_cast<u32>(y + static_cast<i32>(t)) & 0xFF;
+                        const u32 b = (t >> 1) & 0xFF;
+                        row[x] = (r << 16) | (g << 8) | b; // XRGB8888
+                    }
+                }
                 windowManager->presentFramebuffer();
             }
         });

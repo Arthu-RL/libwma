@@ -7,6 +7,15 @@
 
 #include <GLFW/glfw3.h>
 
+#ifdef __APPLE__
+//! The Cocoa native-handle accessors, and the AppKit helper that turns the
+//! NSWindow they hand back into a Metal-hosting view. Apple-only: GLFW exposes
+//! glfwGetCocoaWindow nowhere else, and there is no Metal to host anywhere else.
+#define GLFW_EXPOSE_NATIVE_COCOA
+#include <GLFW/glfw3native.h>
+#include "wma/platform/apple/AppleMetalLayer.hpp"
+#endif
+
 #include <atomic>
 #include <utility>
 
@@ -20,6 +29,7 @@ namespace {
 
     GlfwWindowManager::GlfwWindowManager(const WindowDetails& windowDetails, GraphicsAPI graphicsAPI)
         : window_(nullptr)
+        , metalLayer_(nullptr)
         , windowDetails_(windowDetails)
         , windowFlags_{}
         , graphicsAPI_(graphicsAPI)
@@ -41,6 +51,7 @@ namespace {
 
     GlfwWindowManager::GlfwWindowManager(GlfwWindowManager&& other) noexcept
         : window_(std::exchange(other.window_, nullptr))
+        , metalLayer_(std::exchange(other.metalLayer_, nullptr))
         , windowDetails_(std::move(other.windowDetails_))
         , windowFlags_(std::move(other.windowFlags_))
         , graphicsAPI_(other.graphicsAPI_)
@@ -61,6 +72,7 @@ namespace {
         if (this != &other) {
             destroy();
             window_ = std::exchange(other.window_, nullptr);
+            metalLayer_ = std::exchange(other.metalLayer_, nullptr);
             windowDetails_ = std::move(other.windowDetails_);
             windowFlags_ = std::move(other.windowFlags_);
             graphicsAPI_ = other.graphicsAPI_;
@@ -104,6 +116,22 @@ namespace {
                 throw GraphicsException(
                     "GLFW has no software rendering path; use SDL3/X11/Wayland for "
                     "CPU rendering, or OpenGL/Vulkan with GLFW");
+            case GraphicsAPI::Metal:
+#ifdef __APPLE__
+                /*
+                 * Same hint as the Vulkan case -- GLFW must not create a context
+                 * of its own -- but deliberately without glfwVulkanSupported():
+                 * Metal needs no loader present, and gating on one would make a
+                 * Metal window depend on MoltenVK being installed for something
+                 * it never uses.
+                 */
+                glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+                break;
+#else
+                throw GraphicsException(
+                    "Metal is an Apple-only graphics API; this build of wma targets "
+                    "another platform (use Vulkan/OpenGL with GLFW)");
+#endif
             default:
                 throw GraphicsException("Unsupported graphics API for GLFW");
         }
@@ -130,6 +158,24 @@ namespace {
             //! No GL loader is bundled: load functions yourself via getGLProcAddress().
         }
 
+#ifdef __APPLE__
+        if (graphicsAPI_ == GraphicsAPI::Metal) {
+            /*
+             * GLFW hands back a bare NSWindow, so hosting the layer is wma's job
+             * here -- SDL3 does the equivalent internally. The layer belongs to
+             * the content view and therefore dies with the window, which is why
+             * destroy() only has to forget the pointer.
+             */
+            metalLayer_ = apple::attachMetalLayerToNSWindow(glfwGetCocoaWindow(window_));
+            if (!metalLayer_) {
+                glfwDestroyWindow(window_);
+                window_ = nullptr;
+                throw GraphicsException(
+                    "Failed to attach a CAMetalLayer to the GLFW window's content view");
+            }
+        }
+#endif
+
         keyboardListener_->initialize(window_);
         mouseListener_->initialize(window_);
 
@@ -149,9 +195,28 @@ namespace {
     void* GlfwWindowManager::getWindowInstance() { return window_; }
 
     void* GlfwWindowManager::getGLProcAddress(const char* name) const {
-        if (graphicsAPI_ != GraphicsAPI::OpenGL) 
+        if (graphicsAPI_ != GraphicsAPI::OpenGL)
             return nullptr;
         return reinterpret_cast<void*>(glfwGetProcAddress(name));
+    }
+
+    void* GlfwWindowManager::getMetalLayer() const noexcept {
+        //! Null on every non-Metal window, and on every non-Apple build, where
+        //! createWindow() has already refused the request.
+        return metalLayer_;
+    }
+
+    FramebufferSize GlfwWindowManager::getFramebufferSize() noexcept {
+        int width = 0;
+        int height = 0;
+
+        //! glfwGetFramebufferSize, not glfwGetWindowSize: the latter reports the
+        //! logical size in screen coordinates, which the base implementation
+        //! already covers.
+        if (window_)
+            glfwGetFramebufferSize(window_, &width, &height);
+
+        return FramebufferSize{ width > 0 ? width : 1, height > 0 ? height : 1 };
     }
 
     WindowFlags* GlfwWindowManager::getWindowFlags() noexcept { return &windowFlags_; }
@@ -169,6 +234,16 @@ namespace {
     }
 
     KeyboardListener& GlfwWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
+
+    void GlfwWindowManager::setTextInputEnabled(bool enabled) noexcept {
+        //! Recorded only: GLFW's char callback is always live and there is no
+        //! on-screen keyboard to raise. See IWindowManager::setTextInputEnabled.
+        if (keyboardListener_) keyboardListener_->setTextInputEnabled(enabled);
+    }
+
+    bool GlfwWindowManager::isTextInputEnabled() const noexcept {
+        return keyboardListener_ && keyboardListener_->isTextInputEnabled();
+    }
     MouseListener& GlfwWindowManager::getMouseListener() noexcept { return *mouseListener_; }
 
     bool GlfwWindowManager::shouldClose() const {
@@ -180,7 +255,13 @@ namespace {
 
     WmaCode GlfwWindowManager::destroy() {
         windowShouldClose_ = true;
-        if (window_) 
+
+        //! Owned by the content view, which glfwDestroyWindow takes down; only
+        //! the borrowed pointer is ours to drop, and it must go first so nothing
+        //! can read it between the two.
+        metalLayer_ = nullptr;
+
+        if (window_)
         {
             glfwDestroyWindow(window_);
             window_ = nullptr;

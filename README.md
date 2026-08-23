@@ -2,18 +2,21 @@
 
 WMA is a modern **C++23** window-management and input library that provides a
 unified interface for creating and driving windows across multiple backends
-(**GLFW / SDL3 / X11 / Wayland**) and graphics APIs (**OpenGL / Vulkan / software**).
+(**GLFW / SDL3 / X11 / Wayland**) and graphics APIs
+(**OpenGL / Vulkan / Metal / software**).
 
-The same code runs on **Linux, Windows, macOS, Android and the Web (WASM)** —
-SDL3 is the portable backend and the only one used on Android/WASM.
+The same code runs on **Linux, Windows, macOS, iOS, Android and the Web (WASM)** —
+SDL3 is the portable backend and the only one used on Android, iOS and WASM.
 
 ## ✨ Features
 
 - **Multiple backends** — GLFW, SDL3, X11, Wayland
-- **Graphics APIs** — OpenGL, Vulkan, and software (CPU) rendering
+- **Graphics APIs** — OpenGL, Vulkan, Metal, and software (CPU) rendering
+- **Metal on Apple** — a `GraphicsAPI::Metal` window hosts a `CAMetalLayer`, handed
+  to the renderer through `getMetalLayer()`; macOS via SDL3 or GLFW, iOS via SDL3
 - **Parallel software rendering** — `parallelFill()` spreads CPU pixel work across
   hardware threads, one row-band per core, the way a GPU spreads it across cores
-- **Cross-platform** — desktop, Android (SDL3) and WebAssembly (SDL3)
+- **Cross-platform** — desktop, Android (SDL3), iOS (SDL3) and WebAssembly (SDL3)
 - **Modern C++23** — `enum class`, deducing-this input tables, `move_only_function`
 - **Zero-alloc input** — free-function callbacks take a raw fn-pointer fast path
 - **Layered input contexts** — switch/stack contexts for gameplay, menus, overlays
@@ -29,6 +32,7 @@ libwma/
 │   ├── managers/        # IWindowManager interface
 │   ├── exceptions/      # WMAException hierarchy
 │   ├── rendering/       # SoftwareRenderer — parallel CPU framebuffer fill
+│   ├── platform/apple/  # AppleMetalLayer — CAMetalLayer hosting for GLFW
 │   └── backends/        # glfw / sdl / x11 / wayland
 ├── src/                 # Implementations + factory (WindowManager.cpp)
 ├── examples/basic_window/
@@ -47,7 +51,7 @@ int main() {
     auto window = wma::createWindowManager(
         wma::WindowBackend::SDL3,   // or ::GLFW / ::X11 / ::WAYLAND
         cfg,
-        wma::GraphicsAPI::CPU       // or ::OpenGL / ::Vulkan
+        wma::GraphicsAPI::CPU       // or ::OpenGL / ::Vulkan / ::Metal
     );
     window->createWindow("Hello WMA");
 
@@ -123,6 +127,26 @@ an MSVC-aware toolchain from a Developer Command Prompt (or any shell with
 > wma bug — if you hit it, drop `-DWMA_ENABLE_GLFW=OFF` for the example build,
 > or link SDL3/GLFW as shared libraries instead.
 
+### macOS & iOS (Metal)
+
+`Platform.cmake` forces X11/Wayland off on Apple — neither can host a
+`CAMetalLayer` — and turns on `WMA_HAS_METAL`, which compiles the one
+Objective-C++ translation unit (`src/platform/apple/AppleMetalLayer.mm`) and links
+QuartzCore/Foundation/AppKit:
+
+```bash
+# macOS (needs SDL3 and/or GLFW; `brew install sdl3 glfw`)
+cmake --preset macos-release && cmake --build --preset macos-release
+
+# iOS (SDL3 only — GLFW has no iOS port; SDL3 must be built for arm64-apple-ios)
+cmake --preset ios && cmake --build --preset ios
+```
+
+`Metal` needs no SDK of its own: the frameworks ship with Xcode. Note that wma
+creates the layer but never a `MTLDevice` — setting the device and pixel format
+is the renderer's job, so `Metal` is deliberately *not* among the linked
+frameworks here.
+
 ### Android (SDL3) & Web (WASM, SDL3)
 
 The presets force SDL3 as the sole backend on these targets:
@@ -142,10 +166,10 @@ artifact (`.so` / `.html`+`.js`+`.wasm`) described in the table above.
 
 | Option | Default | Description |
 |--------|:-------:|-------------|
-| `WMA_ENABLE_SDL` | `OFF` | Enable SDL3 backend (forced `ON` for Android/WASM) |
-| `WMA_ENABLE_GLFW` | `OFF` | Enable GLFW backend (desktop only) |
-| `WMA_ENABLE_X11` | `OFF` | Enable X11 backend (desktop only) |
-| `WMA_ENABLE_WAYLAND` | `OFF` | Enable Wayland backend (desktop only) |
+| `WMA_ENABLE_SDL` | `OFF` | Enable SDL3 backend (forced `ON` for Android/iOS/WASM) |
+| `WMA_ENABLE_GLFW` | `OFF` | Enable GLFW backend (desktop only; forced `OFF` on iOS) |
+| `WMA_ENABLE_X11` | `OFF` | Enable X11 backend (Linux only; forced `OFF` on Apple/Windows) |
+| `WMA_ENABLE_WAYLAND` | `OFF` | Enable Wayland backend (Linux only; forced `OFF` on Apple/Windows) |
 | `WMA_BUILD_EXAMPLES` | `OFF` | Build the example applications |
 | `WMA_BUILD_TESTS` | `OFF` | Build the test suite (if `tests/` is present) |
 | `WMA_ENABLE_LTO` | `ON` | Link-time optimization for Release |

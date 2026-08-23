@@ -17,7 +17,8 @@
 #include "input/mouse/MouseListener.hpp"
 #include "input/mouse/MouseAction.hpp"
 #include "managers/IWindowManager.hpp"
-#include "rendering/SoftwareRenderer.hpp"
+#include "audio/AudioTypes.hpp"
+#include "audio/IAudioDevice.hpp"
 
 //! NOTE: concrete backend headers (SdlWindowManager.hpp, …) are intentionally NOT
 //! included here. They pull in backend SDK headers (SDL3, GLFW, Xlib, wayland) and
@@ -53,6 +54,50 @@ namespace wma {
 
     //! Whether @p backend was compiled into the library.
     [[nodiscard]] bool isBackendAvailable(WindowBackend backend) noexcept;
+
+    /**
+     * @brief Create an audio device for @p backend, without opening it.
+     * @throws AudioException if the backend was not compiled into the library.
+     *
+     * The low-level entry point, mirroring createWindowManager(). Most callers
+     * want openAudioDevice() instead, which also opens the device and degrades
+     * to a working backend when the preferred one has no hardware behind it.
+     */
+    [[nodiscard]] std::unique_ptr<IAudioDevice> createAudioDevice(AudioBackend backend);
+
+    //! The preferred audio backend compiled into this build: ALSA on desktop
+    //! Linux, SDL3 elsewhere, Null when the library was built with neither.
+    //! Declared ahead of openAudioDevice() because it supplies its default
+    //! argument, which may only name entities already declared.
+    [[nodiscard]] AudioBackend getDefaultAudioBackend() noexcept;
+
+    /**
+     * @brief Create and open an audio device, degrading until one works.
+     *
+     * Tries @p preferred first, then the remaining compiled-in backends in
+     * descending order of directness, ending at AudioBackend::Null — which
+     * cannot fail — so this always returns a usable, already-open device and
+     * never null. A machine with no sound hardware therefore yields a silent
+     * device rather than an error the caller has to handle.
+     *
+     * The returned device is open but not started: install a mix callback with
+     * IAudioDevice::setMixCallback(), then call IAudioDevice::start().
+     *
+     * @param config    Requested format. Read IAudioDevice::getConfig() back
+     *                  afterwards for what was actually granted.
+     * @param preferred Backend to try first; defaults to the platform's most
+     *                  direct route.
+     */
+    [[nodiscard]] std::unique_ptr<IAudioDevice> openAudioDevice(
+        const AudioDeviceConfig& config,
+        AudioBackend preferred = getDefaultAudioBackend());
+
+    //! Whether @p backend was compiled into the library. Always true for
+    //! AudioBackend::Null.
+    [[nodiscard]] bool isAudioBackendAvailable(AudioBackend backend) noexcept;
+
+    //! Human-readable name for @p backend ("ALSA", "SDL3", "Null").
+    [[nodiscard]] const char* audioBackendName(AudioBackend backend) noexcept;
 
     //! Human-readable build summary (version, backends, graphics APIs).
     [[nodiscard]] const char* getLibraryInfo() noexcept;

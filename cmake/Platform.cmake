@@ -19,6 +19,40 @@ if(ANDROID)
     set(WMA_ENABLE_SDL  ON  CACHE BOOL "" FORCE)
 endif()
 
+if(APPLE)
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        message(STATUS "[wma] iOS build — SDL3 is the only supported backend")
+
+        # GLFW has no iOS port.
+        set(WMA_ENABLE_SDL  ON  CACHE BOOL "" FORCE)
+        set(WMA_ENABLE_GLFW OFF CACHE BOOL "" FORCE)
+
+        # -march=native is meaningless when cross-compiling for the device, and
+        # neither the examples (which want a launchable binary) nor the tests
+        # (which CTest cannot start on a device) are runnable from here.
+        set(WMA_NATIVE_OPTIMIZE OFF CACHE BOOL "" FORCE)
+        set(WMA_BUILD_EXAMPLES  OFF CACHE BOOL "" FORCE)
+        set(WMA_BUILD_TESTS     OFF CACHE BOOL "" FORCE)
+    else()
+        message(STATUS "[wma] Target platform: macOS  "
+                       "Arch=${CMAKE_OSX_ARCHITECTURES}  Compiler=${CMAKE_CXX_COMPILER_ID}")
+    endif()
+
+    # X11 and Wayland are Linux display protocols. XQuartz can supply an X server
+    # on macOS, but a window opened through it is not a native Cocoa window and so
+    # cannot host a CAMetalLayer — which is the reason this platform is supported
+    # in the first place.
+    foreach(_backend X11 WAYLAND)
+        if(WMA_ENABLE_${_backend})
+            message(WARNING
+                "[wma] WMA_ENABLE_${_backend} is not supported on Apple platforms — "
+                "forcing OFF (use SDL3/GLFW)"
+            )
+        endif()
+        set(WMA_ENABLE_${_backend} OFF CACHE BOOL "" FORCE)
+    endforeach()
+endif()
+
 if(WIN32 AND NOT EMSCRIPTEN)
     message(STATUS "[wma] Target platform: Windows  Compiler=${CMAKE_CXX_COMPILER_ID}")
 

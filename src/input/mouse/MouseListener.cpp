@@ -161,7 +161,18 @@ void MouseListener::dispatchMove(const WMAMousePosition& position) {
     moveActions_[ctx].executeMove(position);
 }
 
+WMAMouseScroll MouseListener::consumeScrollDelta() noexcept {
+    const WMAMouseScroll drained = accumulatedScroll_;
+    accumulatedScroll_ = WMAMouseScroll{};
+    return drained;
+}
+
 void MouseListener::dispatchScroll(const WMAMouseScroll& scroll) {
+    //! Accumulated before dispatch, and unconditionally: a poller must see the
+    //! wheel whether or not anything has claimed the scroll action.
+    accumulatedScroll_.xOffset += scroll.xOffset;
+    accumulatedScroll_.yOffset += scroll.yOffset;
+
     const InputContextId ctx = contexts_.resolved();
     if (ctx >= scrollActions_.size()) [[unlikely]] return;
     scrollActions_[ctx].executeScroll(scroll);

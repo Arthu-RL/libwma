@@ -22,7 +22,8 @@
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
         "WMA_ENABLE_X11": "ON",
-        "WMA_ENABLE_WAYLAND": "ON"
+        "WMA_ENABLE_WAYLAND": "ON",
+        "WMA_ENABLE_ALSA": "ON"
       }
     },
     {
@@ -36,7 +37,8 @@
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
         "WMA_ENABLE_X11": "ON",
-        "WMA_ENABLE_WAYLAND": "ON"
+        "WMA_ENABLE_WAYLAND": "ON",
+        "WMA_ENABLE_ALSA": "ON"
       }
     },
     {
@@ -63,6 +65,49 @@
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
         "WMA_ENABLE_GLFW": "ON"
+      }
+    },
+    {
+      "name": "macos-debug",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/macos/debug",
+      "installDir": "$env{LOCAL_PREFIX}/macos/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/macos/debug",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "WMA_BUILD_EXAMPLES": "ON",
+        "WMA_ENABLE_SDL": "ON",
+        "WMA_ENABLE_GLFW": "ON"
+      }
+    },
+    {
+      "name": "macos-release",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/macos/release",
+      "installDir": "$env{LOCAL_PREFIX}/macos/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/macos/release",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "WMA_BUILD_EXAMPLES": "ON",
+        "WMA_ENABLE_SDL": "ON",
+        "WMA_ENABLE_GLFW": "ON"
+      }
+    },
+    {
+      "name": "ios",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/ios",
+      "installDir": "$env{LOCAL_PREFIX}/ios",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_SYSROOT": "iphoneos",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "16.0",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/ios",
+        "WMA_ENABLE_SDL": "ON"
       }
     },
     {
@@ -96,6 +141,9 @@
     {"name": "linux-release", "configurePreset": "linux-release"},
     {"name": "windows-debug", "configurePreset": "windows-debug"},
     {"name": "windows-release", "configurePreset": "windows-release"},
+    {"name": "macos-debug", "configurePreset": "macos-debug"},
+    {"name": "macos-release", "configurePreset": "macos-release"},
+    {"name": "ios", "configurePreset": "ios"},
     {"name": "android", "configurePreset": "android"},
     {"name": "wasm", "configurePreset": "wasm"}
   ]
