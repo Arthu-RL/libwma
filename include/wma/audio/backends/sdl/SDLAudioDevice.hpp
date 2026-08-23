@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "wma/audio/IAudioDevice.hpp"
+#include "wma/audio/MixCallbackSlot.hpp"
 
 struct SDL_AudioStream;
 
@@ -70,7 +71,7 @@ namespace wma {
 
         SDL_AudioStream*  _stream = nullptr;
         AudioDeviceConfig _config{};
-        AudioMixCallback  _mixCallback{};
+        MixCallbackSlot   _mixCallback{};
         //! Reused across callbacks: allocating on the audio thread is exactly
         //! the kind of unbounded pause that produces an audible dropout.
         std::vector<f32>  _scratch{};

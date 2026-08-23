@@ -116,7 +116,10 @@ WmaCode AlsaAudioDevice::open(const AudioDeviceConfig& config)
 
 void AlsaAudioDevice::close() noexcept
 {
+    //! stop() joins the writer thread, so the active callback is no longer in
+    //! use by the time it is dropped here.
     stop();
+    _mixCallback.clear();
 
     if (_pcm)
     {
@@ -177,7 +180,7 @@ bool AlsaAudioDevice::isRunning() const noexcept
 
 void AlsaAudioDevice::setMixCallback(AudioMixCallback callback)
 {
-    _mixCallback = std::move(callback);
+    _mixCallback.store(std::move(callback));
 }
 
 const AudioDeviceConfig& AlsaAudioDevice::getConfig() const noexcept
@@ -198,12 +201,10 @@ void AlsaAudioDevice::writerLoop(std::stop_token stopToken)
     {
         const std::span<f32> block{_scratch.data(), _scratch.size()};
 
-        //! Silence when nothing is installed: the buffer is not pre-zeroed, and
+        //! Picks up a callback installed since the last period, and writes
+        //! silence when none is installed -- the buffer is not pre-zeroed, and
         //! handing ALSA stale contents would replay the previous period.
-        if (_mixCallback)
-            _mixCallback(block);
-        else
-            std::fill(block.begin(), block.end(), 0.0f);
+        _mixCallback.invoke(block);
 
         snd_pcm_sframes_t written = snd_pcm_writei(_pcm, block.data(), periodFrames);
 

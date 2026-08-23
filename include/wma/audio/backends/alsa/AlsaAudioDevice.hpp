@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "wma/audio/IAudioDevice.hpp"
+#include "wma/audio/MixCallbackSlot.hpp"
 
 //! Opaque in this header on purpose: <alsa/asoundlib.h> is a large C header
 //! that would land in every consumer TU including wma/audio headers. Only the
@@ -69,7 +70,7 @@ namespace wma {
 
         snd_pcm_t*        _pcm = nullptr;
         AudioDeviceConfig _config{};
-        AudioMixCallback  _mixCallback{};
+        MixCallbackSlot   _mixCallback{};
         std::vector<f32>  _scratch{};
         std::jthread      _writer{};
         std::atomic<bool> _running{false};

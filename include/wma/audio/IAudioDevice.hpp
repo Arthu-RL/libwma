@@ -23,9 +23,9 @@ namespace wma {
      * The destructor performs stop()/close() itself, so a device that goes out
      * of scope mid-playback is safe.
      *
-     * @note Instances are not thread-safe. Drive one from a single thread; the
-     *       mix callback is the sole exception and runs on the audio thread by
-     *       design.
+     * @note Instances are not thread-safe. Drive one from a single thread. The
+     *       two exceptions are the mix callback, which runs on the audio thread
+     *       by design, and setMixCallback(), which may be called while running.
      */
     class IAudioDevice {
     public:
@@ -73,8 +73,13 @@ namespace wma {
         /**
          * @brief Install the callback the device pulls samples from.
          *
-         * @warning Call this while stopped. Replacing the callback of a running
-         *          device races with the audio thread already executing it.
+         * Safe to call on a running device: backends that own an audio thread
+         * hand the callback over through MixCallbackSlot, which swaps it in on
+         * the audio thread and reclaims the replaced one here. The swap takes
+         * effect within a period or two rather than instantly, so a caller that
+         * needs an exact cutover should stop() first.
+         *
+         * @note Not safe to call from inside the mix callback itself.
          */
         virtual void setMixCallback(AudioMixCallback callback) = 0;
 

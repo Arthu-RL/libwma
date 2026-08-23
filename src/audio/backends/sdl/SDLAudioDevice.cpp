@@ -90,6 +90,7 @@ void SDLAudioDevice::close() noexcept
     }
 
     _running = false;
+    _mixCallback.clear();
 
     if (_ownsSubsystem)
     {
@@ -134,7 +135,7 @@ bool SDLAudioDevice::isRunning() const noexcept
 
 void SDLAudioDevice::setMixCallback(AudioMixCallback callback)
 {
-    _mixCallback = std::move(callback);
+    _mixCallback.store(std::move(callback));
 }
 
 const AudioDeviceConfig& SDLAudioDevice::getConfig() const noexcept
@@ -161,26 +162,25 @@ void SDLAudioDevice::fillStream(SDL_AudioStream* stream, int additionalBytes)
     if (additionalBytes <= 0)
         return;
 
-    //! No callback installed is a normal state (a game that has not loaded any
-    //! audio yet): feed silence rather than leaving SDL's buffer unfilled,
-    //! which would loop the previous period's contents.
-    const usize samplesWanted = static_cast<usize>(additionalBytes) / sizeof(f32);
+    usize samplesWanted = static_cast<usize>(additionalBytes) / sizeof(f32);
     if (samplesWanted == 0)
         return;
 
-    if (_scratch.size() < samplesWanted)
-        _scratch.resize(samplesWanted);
+    /*
+     * Clamped, never grown. open() sizes _scratch to four periods, so a larger
+     * request means SDL is recovering from a stall -- and resizing here would
+     * allocate on the audio thread, turning a momentary shortfall into an
+     * unbounded pause. Feeding what fits leaves SDL to ask again for the rest.
+     */
+    if (samplesWanted > _scratch.size()) [[unlikely]]
+        samplesWanted = _scratch.size();
 
     const std::span<f32> block{_scratch.data(), samplesWanted};
 
-    if (_mixCallback)
-    {
-        _mixCallback(block);
-    }
-    else
-    {
-        std::fill(block.begin(), block.end(), 0.0f);
-    }
+    //! Picks up a callback installed since the last period, and writes silence
+    //! when none is installed -- a normal state for a game that has loaded no
+    //! audio yet.
+    _mixCallback.invoke(block);
 
     SDL_PutAudioStreamData(stream, block.data(), static_cast<int>(samplesWanted * sizeof(f32)));
 }
