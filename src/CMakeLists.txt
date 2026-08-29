@@ -130,11 +130,9 @@ if(WMA_NATIVE_OPTIMIZE AND MSVC)
     message(STATUS "[wma] WMA_NATIVE_OPTIMIZE has no effect on MSVC (no -march=native equivalent); ignoring.")
 endif()
 
+# ThreadPool/WorkerThread live in ink::ink again as of ink 0.3.0, so there is
+# no separate threading target to link -- on Emscripten or anywhere else.
 target_link_libraries(wma PUBLIC ink::ink)
-
-if(NOT EMSCRIPTEN)
-    target_link_libraries(wma PRIVATE ink::threading)
-endif()
 
 if(WMA_ENABLE_SDL)
     target_compile_definitions(wma PRIVATE WMA_ENABLE_SDL)

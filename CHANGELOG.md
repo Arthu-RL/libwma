@@ -13,6 +13,9 @@ All notable changes to libwma are documented in this file.
 - `MouseListener::consumeScrollDelta()`: polls accumulated wheel movement and resets it. A context holds exactly one scroll action, so a second subscriber would displace the first — this is the non-displacing route an overlay needs, mirroring what `getCurrentPosition()` already provides for cursor motion, and it accumulates so a fast flick reads as many notches rather than one
 - `IWindowManager::getFramebufferSize()`: the window's drawable size in *pixels*, as opposed to `WindowDetails`' logical width/height — the two differ by the backing scale factor, and a renderer that sizes its surface from the logical value draws a quarter of a Retina window stretched over the whole of it. SDL3 and GLFW override it (`SDL_GetWindowSizeInPixels`/`glfwGetFramebufferSize`); X11 and Wayland inherit a default that returns the logical size, which is correct where there is no separate backing-store scaling
 
+### Changed
+- Dropped the explicit `ink::threading` link: `ThreadPool`/`WorkerThread` are back in `ink::ink` as of ink 0.3.0, so linking `ink::ink` is sufficient again on every platform. The `if(NOT EMSCRIPTEN)` guard around that link is gone with it — ink now carries `-pthread` on Emscripten unconditionally, so **a page serving a WASM build of wma must send COOP/COEP** (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`) or the module will not instantiate. Requires ink >= 0.3.0; `ink::threading` no longer exists to link against
+
 ## [0.1.0]
 
 ### Added
