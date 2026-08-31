@@ -26,7 +26,7 @@ namespace wma {
  */
 class FrameTimer {
 public:
-    using clock = std::chrono::high_resolution_clock;
+    using clock = std::chrono::steady_clock;
 
     explicit FrameTimer(WindowFlags& wFlags) noexcept : 
         windowFlags_(wFlags),
