@@ -47,10 +47,24 @@ public:
      */
     void endFrame(bool limit = true) {
         std::chrono::duration<f64, std::milli> elapsed = frameStart_ - lastFrameStart_;
+        
+        // Instantaneous delta time (needed every frame for physics/movement)
         windowFlags_.deltaTime = INK_MAX(elapsed.count(), LIMIT_TARGET_FPS_TOLERANCE);
-        windowFlags_.fps = 1000.0 / windowFlags_.deltaTime;
         lastFrameStart_ = frameStart_;
 
+        // Accumulate for smoothed FPS (updates every 500ms)
+        accumulatedTime_ += windowFlags_.deltaTime;
+        frameCount_++;
+
+        if (accumulatedTime_ >= 500.0) {
+            windowFlags_.fps = (frameCount_ * 1000.0) / accumulatedTime_;
+            
+            // Reset for the next 0.5s window
+            accumulatedTime_ = 0.0;
+            frameCount_ = 0;
+        }
+
+        // Pacing logic
         if (!limit || targetFrameTime_.count() <= 0.0)
             return;
 
@@ -72,6 +86,10 @@ private:
     std::chrono::duration<f64, std::milli> targetFrameTime_{0.0}; //!< 0 => unlimited
     clock::time_point lastFrameStart_;
     clock::time_point frameStart_;
+
+    // Smoothing metrics
+    f64 accumulatedTime_{0.0};
+    u32 frameCount_{0};
 };
 
 } // namespace wma
