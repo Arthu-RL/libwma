@@ -230,6 +230,13 @@ void WaylandWindowManager::createWindow(const char* windowName)
         case GraphicsAPI::Vulkan:
             //! The application creates the VkSurfaceKHR from display_ + surface_.
             break;
+        case GraphicsAPI::Metal:
+            //! Named rather than left to the default below purely for the
+            //! diagnostic: "unsupported" reads like a build-option problem, when
+            //! the truth is that Wayland and Metal exist on disjoint platforms.
+            throw GraphicsException(
+                "Metal is an Apple-only graphics API and Wayland is a Linux display "
+                "protocol; the two can never pair (use Vulkan/OpenGL/CPU)");
         default:
             throw GraphicsException("Unsupported graphics API for Wayland");
     }
@@ -378,7 +385,11 @@ void WaylandWindowManager::setupInputDevices()
         keyboardListener_->initialize(keyboard_);
     }
     if (pointer_) {
-        mouseListener_->initialize(pointer_);
+        //! compositor_/shm_ are bound by the registry callback, which the
+        //! roundtrip above guarantees has already run -- passing them here is
+        //! what lets the listener restore the system cursor image after a
+        //! hide, rather than only ever being able to hide it.
+        mouseListener_->initialize(pointer_, compositor_, shm_);
     }
 }
 
@@ -422,6 +433,16 @@ const std::vector<const char*> WaylandWindowManager::getVulkanExtensions() const
 WindowFlags* WaylandWindowManager::getWindowFlags() noexcept { return &windowFlags_; }
 const WindowDetails* WaylandWindowManager::getWindowDetails() noexcept { return &windowDetails_; }
 KeyboardListener& WaylandWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
+
+void WaylandWindowManager::setTextInputEnabled(bool enabled) noexcept {
+    //! Recorded only: the xkb keymap is live from the moment the compositor
+    //! sends it. See IWindowManager::setTextInputEnabled.
+    if (keyboardListener_) keyboardListener_->setTextInputEnabled(enabled);
+}
+
+bool WaylandWindowManager::isTextInputEnabled() const noexcept {
+    return keyboardListener_ && keyboardListener_->isTextInputEnabled();
+}
 MouseListener& WaylandWindowManager::getMouseListener() noexcept { return *mouseListener_; }
 bool WaylandWindowManager::shouldClose() const { return windowShouldClose_; }
 WindowBackend WaylandWindowManager::getBackendType() const { return WindowBackend::WAYLAND; }
@@ -573,7 +594,21 @@ void WaylandWindowManager::handleSeatCapabilities(void* data, wl_seat* seat,
     if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) 
     {
         if (!manager->keyboard_)
+        {
             manager->keyboard_ = wl_seat_get_keyboard(seat);
+
+            /*
+             * Subscribed here rather than in setupInputDevices(): the
+             * compositor sends the keymap immediately in reply to
+             * get_keyboard, and libwayland drops an event that reaches a proxy
+             * with no listener. Attaching one roundtrip later therefore misses
+             * the only keymap event there is, leaving xkb uninitialised -- keys
+             * still dispatch (they come from a static evdev table) but no text
+             * is ever produced, so a text field focuses and then ignores
+             * everything typed into it.
+             */
+            manager->keyboardListener_->initialize(manager->keyboard_);
+        }
     } else {
         if (manager->keyboard_) 
         {

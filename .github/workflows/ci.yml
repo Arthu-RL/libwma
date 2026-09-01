@@ -183,6 +183,157 @@ jobs:
       - name: Build
         run: cmake --build build-android --parallel
 
+  macos-build:
+    name: macOS
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    # Exercises the Metal path: cmake/Platform.cmake forces X11/Wayland off on
+    # Apple, leaving SDL3 and GLFW — the two backends that can host a
+    # CAMetalLayer — and turning on WMA_HAS_METAL, which is what compiles
+    # src/platform/apple/AppleMetalLayer.mm and the Objective-C++ language support
+    # for it.
+    steps:
+      - name: Checkout wma
+        uses: actions/checkout@v4
+        with:
+          path: wma
+
+      - name: Checkout ink
+        # macos-latest has no vulkan-dev container to pull a prebuilt ink from
+        # (unlike the Linux/Android/WASM jobs above), so build+install the ink
+        # dependency from source here into a local prefix — same approach as
+        # windows-build below.
+        uses: actions/checkout@v4
+        with:
+          repository: Arthu-RL/libink
+          ref: main
+          path: ink
+
+      - name: Install dependencies (Homebrew)
+        # nlohmann-json is ink's dependency; sdl3/glfw are wma's. QuartzCore,
+        # Foundation and AppKit need no package — they ship with the Xcode SDK
+        # macos-latest already has. Ninja matches CMakePresets.json's generator.
+        run: brew install ninja sdl3 glfw nlohmann-json
+
+      - name: Configure ink
+        run: >
+          cmake -S ink -B ink/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DINK_BUILD_TESTS=OFF
+          -DINK_NATIVE_OPTIMIZE=OFF
+
+      - name: Build ink
+        run: cmake --build ink/build --parallel
+
+      - name: Install ink
+        run: cmake --install ink/build --prefix ink/stage
+
+      - name: Configure wma
+        # Mirrors CMakePresets.json's "macos-release" preset (deployment target,
+        # backend set) rather than using it directly, since that preset's
+        # CMAKE_PREFIX_PATH is wired through $env{LOCAL_PREFIX}, which isn't set
+        # to anything useful here.
+        run: >
+          cmake -S wma -B wma/build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/ink/stage"
+          -DWMA_BUILD_EXAMPLES=ON
+          -DWMA_BUILD_TESTS=OFF
+          -DWMA_ENABLE_SDL=ON
+          -DWMA_ENABLE_GLFW=ON
+
+      - name: Build wma
+        run: cmake --build wma/build --parallel
+
+  ios-build:
+    name: iOS (build only)
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    # Build-only: nothing here drives a simulator, and an on-device run needs a
+    # signing identity this workflow has no business holding. What it proves is
+    # that the SDL3 backend and the Metal layer accessor compile and link for
+    # arm64-apple-ios.
+    #
+    # SDL3 is built from source rather than installed: Homebrew ships
+    # macOS-native binaries only, so its sdl3 bottle cannot be linked into an
+    # iOS target.
+    steps:
+      - name: Checkout wma
+        uses: actions/checkout@v4
+        with:
+          path: wma
+
+      - name: Checkout ink
+        uses: actions/checkout@v4
+        with:
+          repository: Arthu-RL/libink
+          ref: main
+          path: ink
+
+      - name: Checkout SDL3
+        uses: actions/checkout@v4
+        with:
+          repository: libsdl-org/SDL
+          ref: release-3.2.x
+          path: SDL
+
+      - name: Install host tools (Homebrew)
+        # nlohmann-json is header-only, so ink's macOS-native package config is
+        # usable from an iOS target as long as find_package can see it — hence
+        # CMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH below (the "base" preset sets
+        # the same thing).
+        run: brew install ninja nlohmann-json
+
+      - name: Build and install SDL3 for iOS
+        run: |
+          cmake -S SDL -B SDL/build-ios -G Ninja \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDL_SHARED=OFF \
+            -DSDL_STATIC=ON \
+            -DSDL_TESTS=OFF \
+            -DSDL_EXAMPLES=OFF
+          cmake --build SDL/build-ios --parallel
+          cmake --install SDL/build-ios --prefix deps-ios
+
+      - name: Build and install ink for iOS
+        run: |
+          cmake -S ink -B ink/build-ios -G Ninja \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \
+            -DINK_BUILD_TESTS=OFF \
+            -DINK_NATIVE_OPTIMIZE=OFF
+          cmake --build ink/build-ios --parallel
+          cmake --install ink/build-ios --prefix deps-ios
+
+      - name: Configure wma
+        # Mirrors CMakePresets.json's "ios" preset. WMA_ENABLE_GLFW,
+        # WMA_BUILD_EXAMPLES and WMA_BUILD_TESTS are forced off for iOS by
+        # cmake/Platform.cmake, so they are not repeated here.
+        run: >
+          cmake -S wma -B wma/build-ios -G Ninja
+          -DCMAKE_SYSTEM_NAME=iOS
+          -DCMAKE_OSX_SYSROOT=iphoneos
+          -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH
+          -DCMAKE_PREFIX_PATH="${{ github.workspace }}/deps-ios"
+          -DWMA_ENABLE_SDL=ON
+
+      - name: Build wma
+        run: cmake --build wma/build-ios --parallel
+
   windows-build:
     name: Windows
     runs-on: windows-latest

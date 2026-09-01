@@ -18,7 +18,7 @@ namespace wma {
      * @brief Abstract base interface for window managers.
      *
      * Provides a common interface across windowing backends (GLFW, SDL3, X11,
-     * Wayland) and graphics APIs (OpenGL, Vulkan, software/CPU).
+     * Wayland) and graphics APIs (OpenGL, Vulkan, Metal, software/CPU).
      *
      * Two ways to drive the window:
      *   - process(): a managed blocking run-loop. On Emscripten/WASM it hands the
@@ -47,7 +47,8 @@ namespace wma {
         virtual void pollEvents() = 0;
 
         //! Present the current frame: GL buffer swap, software blit, or no-op for
-        //! Vulkan (which the application presents through its own swapchain).
+        //! Vulkan and Metal (which the application presents through its own
+        //! swapchain / the CAMetalLayer's drawables).
         virtual void swapBuffers() {}
 
         //! Native window handle (SDL_Window*, GLFWwindow*, X11 Window, wl_surface*).
@@ -100,12 +101,64 @@ namespace wma {
         //! an OpenGL window or the backend cannot resolve it.
         virtual void* getGLProcAddress(const char* /*name*/) const { return nullptr; }
 
+        /**
+         * @brief The CAMetalLayer backing this window (GraphicsAPI::Metal only).
+         *
+         * The Metal counterpart of getGLProcAddress()/lockFramebuffer(): the one
+         * handle a renderer needs from the window in order to draw. Cast the
+         * result to `CAMetalLayer*` (or metal-cpp's `CA::MetalLayer*`, which is
+         * the same object) and set its device and pixel format; the layer's size
+         * is kept in step with the window by the backend, so a renderer only has
+         * to react to WindowFlags::resized.
+         *
+         * Returned as void* deliberately. A CAMetalLayer* in this signature would
+         * drag QuartzCore — and therefore Objective-C — into every consumer's
+         * translation unit, on every platform, for a handle that is null on all
+         * but two backends. That is the same reasoning getWindowInstance() and
+         * getNativeDisplayHandle() follow.
+         *
+         * Ownership stays with the backend: do not release the layer, and do not
+         * use it past destroy().
+         *
+         * @return The layer, or nullptr when this window is not a Metal window —
+         *         which is every window on every non-Apple platform (default).
+         */
+        [[nodiscard]] virtual void* getMetalLayer() const noexcept { return nullptr; }
+
         //! Acquire a CPU-writable framebuffer (GraphicsAPI::CPU only). Returns an
         //! invalid framebuffer (pixels == nullptr) when unsupported.
         virtual SoftwareFramebuffer lockFramebuffer() { return {}; }
 
         //! Blit the framebuffer previously obtained from lockFramebuffer().
         virtual void presentFramebuffer() {}
+
+        /**
+         * @brief The window's drawable size in pixels.
+         *
+         * What a renderer must size its surface from — a Vulkan swapchain extent,
+         * a glViewport, a CAMetalLayer's drawableSize — as opposed to
+         * getWindowDetails()'s logical width/height. See FramebufferSize for why
+         * the two are not interchangeable.
+         *
+         * The default returns the logical size, which is correct for every
+         * backend that has no separate backing-store scaling (X11, Wayland). SDL3
+         * and GLFW override it, since both run on platforms that do.
+         *
+         * @return The size in pixels, clamped to at least 1x1 so a minimised
+         *         window (which several platforms report as 0x0) never yields a
+         *         zero-sized surface.
+         */
+        [[nodiscard]] virtual FramebufferSize getFramebufferSize() noexcept
+        {
+            const WindowDetails* details = getWindowDetails();
+            if (!details)
+                return FramebufferSize{1, 1};
+
+            return FramebufferSize{
+                details->width > 0 ? details->width : 1,
+                details->height > 0 ? details->height : 1,
+            };
+        }
 
         virtual WindowFlags* getWindowFlags() noexcept = 0;
         virtual const WindowDetails* getWindowDetails() noexcept = 0;
@@ -123,6 +176,24 @@ namespace wma {
         //! whose listener simply never fires -- bindings on it are harmless
         //! no-ops rather than a compile error or a null dereference.
         virtual TouchListener& getTouchListener() noexcept { return inertTouchListener_; }
+
+        /**
+         * @brief Turns the platform's text-input machinery on or off.
+         *
+         * Must be enabled before KeyboardListener::setTextInputAction() will
+         * see anything on backends that gate it -- and on Android and iOS this
+         * is also what raises and dismisses the on-screen keyboard, which is
+         * why it is a request rather than something always-on: a soft keyboard
+         * must not cover the screen until a field actually wants typing.
+         *
+         * Backends with nothing to gate (GLFW, X11, Wayland) record the
+         * request and deliver text regardless, so a caller that enables this
+         * around its text fields behaves identically everywhere.
+         */
+        virtual void setTextInputEnabled(bool /*enabled*/) noexcept {}
+
+        //! Whether setTextInputEnabled(true) is in effect.
+        [[nodiscard]] virtual bool isTextInputEnabled() const noexcept { return false; }
 
     protected:
         TouchListener inertTouchListener_;

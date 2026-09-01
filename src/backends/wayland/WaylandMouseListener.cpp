@@ -4,6 +4,22 @@
 
 #include <linux/input-event-codes.h>
 
+namespace {
+
+//! Cursor-theme lookup name for the default arrow pointer. "left_ptr" is the
+//! legacy X-cursor name every theme still ships for compatibility; the newer
+//! "default" alias is not guaranteed present on every theme, so the legacy
+//! name is the safer bet for actually finding an image.
+constexpr const char* kDefaultCursorName = "left_ptr";
+
+//! Cursor image size requested from the theme, in surface pixels. 24 is the
+//! conventional X11/Wayland default; asking for it explicitly keeps the
+//! visible size consistent across themes rather than trusting whichever
+//! default size a given theme happens to ship.
+constexpr int kCursorSize = 24;
+
+} // namespace
+
 namespace wma {
 
 const wl_pointer_listener WaylandMouseListener::pointerListener_ = {
@@ -27,6 +43,10 @@ WaylandMouseListener::WaylandMouseListener()
 
 WaylandMouseListener::~WaylandMouseListener()
 {
+    if (cursorTheme_) {
+        wl_cursor_theme_destroy(cursorTheme_);
+        cursorTheme_ = nullptr;
+    }
     if (cursorSurface_) {
         wl_surface_destroy(cursorSurface_);
         cursorSurface_ = nullptr;
@@ -37,16 +57,31 @@ WaylandMouseListener::~WaylandMouseListener()
     }
 }
 
-void WaylandMouseListener::initialize(wl_pointer* pointer)
+void WaylandMouseListener::initialize(wl_pointer* pointer, wl_compositor* compositor, wl_shm* shm)
 {
     if (!pointer) {
         throw InputException("Invalid Wayland pointer");
     }
     pointer_ = pointer;
     wl_pointer_add_listener(pointer_, &pointerListener_, this);
+
+    //! Both optional, and both needed only to *restore* the system cursor;
+    //! hiding it (wl_pointer_set_cursor with a null surface) needs neither.
+    //! A caller that only ever hides the cursor -- or one built before this
+    //! parameter pair existed, via the two-argument overload -- still works,
+    //! just without a restore path (see applyCursorState()).
+    if (compositor) {
+        cursorSurface_ = wl_compositor_create_surface(compositor);
+    }
+    if (shm) {
+        //! nullptr theme name asks the compositor for its configured default
+        //! theme rather than pinning one by name, so this follows whatever
+        //! cursor theme the user has actually set system-wide.
+        cursorTheme_ = wl_cursor_theme_load(nullptr, kCursorSize, shm);
+    }
 }
 
-void WaylandMouseListener::handleEnter(u32, wl_surface*,
+void WaylandMouseListener::handleEnter(u32 serial, wl_surface*,
                                        wl_fixed_t x, wl_fixed_t y)
 {
     f64 xpos = wl_fixed_to_double(x);
@@ -54,6 +89,16 @@ void WaylandMouseListener::handleEnter(u32, wl_surface*,
     currentPosition_ = WMAMousePosition(xpos, ypos);
     lastPosition_ = currentPosition_;
     firstMouse_ = true;
+
+    /*
+     * The compositor resets the pointer to its default image on every enter,
+     * silently overriding whatever this listener last asked for -- including
+     * a prior hide. This is what makes "cursor stays hidden while playing"
+     * hold across, e.g., a window losing and regaining pointer focus, rather
+     * than working only up to the first re-entry.
+     */
+    enterSerial_ = serial;
+    applyCursorState();
 }
 
 void WaylandMouseListener::handleLeave(u32, wl_surface*)
@@ -118,10 +163,53 @@ void WaylandMouseListener::handleAxisDiscrete(u32 axis, i32 discrete)
 
 void WaylandMouseListener::updateCursorState()
 {
+    applyCursorState();
+}
+
+void WaylandMouseListener::applyCursorState()
+{
     if (!pointer_) return;
+
+    /*
+     * wl_pointer.set_cursor is only valid with the serial of the most recent
+     * enter (the spec calls an earlier or absent one a protocol error the
+     * compositor may act on by killing the connection). Before the first
+     * enter there is nothing legal to call it with; handleEnter() re-applies
+     * this the moment a serial exists, so nothing is lost by skipping here.
+     */
+    if (enterSerial_ == 0) return;
+
     if (!cursorEnabled_) {
-        wl_pointer_set_cursor(pointer_, 0, nullptr, 0, 0);
+        //! The hide. A null surface is not "leave it as-is" -- it is the
+        //! documented way to tell the compositor to draw nothing at the
+        //! pointer position, which is the only such mechanism Wayland has.
+        wl_pointer_set_cursor(pointer_, enterSerial_, nullptr, 0, 0);
+        return;
     }
+
+    //! Restoring needs an actual image to hand the compositor; without a
+    //! theme and a surface to attach it to there is nothing to restore *to*,
+    //! so the pointer is left exactly as the compositor's own implicit
+    //! per-enter reset already put it (its default image).
+    if (!cursorTheme_ || !cursorSurface_) return;
+
+    wl_cursor* cursor = wl_cursor_theme_get_cursor(cursorTheme_, kDefaultCursorName);
+    if (!cursor || cursor->image_count == 0) return;
+
+    //! Static image: the first frame of a (possibly animated) cursor is
+    //! enough for a restored system pointer, and avoids owning an animation
+    //! timer purely to cycle frames on a cursor this class does not draw.
+    wl_cursor_image* image = cursor->images[0];
+    wl_buffer* buffer = wl_cursor_image_get_buffer(image);
+    if (!buffer) return;
+
+    wl_surface_attach(cursorSurface_, buffer, 0, 0);
+    wl_surface_damage(cursorSurface_, 0, 0,
+                      static_cast<i32>(image->width), static_cast<i32>(image->height));
+    wl_surface_commit(cursorSurface_);
+
+    wl_pointer_set_cursor(pointer_, enterSerial_, cursorSurface_,
+                          static_cast<i32>(image->hotspot_x), static_cast<i32>(image->hotspot_y));
 }
 
 i32 WaylandMouseListener::convertButton(u32 waylandButton) const

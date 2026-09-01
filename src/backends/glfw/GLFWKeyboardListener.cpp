@@ -18,6 +18,7 @@ GLFWKeyboardListener::~GLFWKeyboardListener()
 {
     if (glfwWindow_) {
         glfwSetKeyCallback(glfwWindow_, nullptr);
+        glfwSetCharCallback(glfwWindow_, nullptr);
     }
 }
 
@@ -32,16 +33,24 @@ void GLFWKeyboardListener::initialize(GLFWwindow* window)
         userData->keyboardListener = this;
     }
     glfwSetKeyCallback(window, glfwKeyCallback);
+    glfwSetCharCallback(window, glfwCharCallback);
 }
 
 void GLFWKeyboardListener::handleKeyEvent(i32 key, i32 action)
 {
     const Key mappedKey = mapGLFWKey(key);
     if (action == GLFW_PRESS) {
-        dispatchKeyPress(mappedKey);
+        dispatchKeyPress(mappedKey, /*repeat=*/false);
+    } else if (action == GLFW_REPEAT) {
+        dispatchKeyPress(mappedKey, /*repeat=*/true);
     } else if (action == GLFW_RELEASE) {
         dispatchKeyRelease(mappedKey);
     }
+}
+
+void GLFWKeyboardListener::handleCharEvent(u32 codepoint)
+{
+    dispatchText(static_cast<Codepoint>(codepoint));
 }
 
 void GLFWKeyboardListener::glfwKeyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods)
@@ -49,6 +58,14 @@ void GLFWKeyboardListener::glfwKeyCallback(GLFWwindow* window, i32 key, i32 scan
     auto* listener = getInstanceFromWindow(window);
     if (listener) {
         listener->handleKeyEvent(key, action);
+    }
+}
+
+void GLFWKeyboardListener::glfwCharCallback(GLFWwindow* window, u32 codepoint)
+{
+    auto* listener = getInstanceFromWindow(window);
+    if (listener) {
+        listener->handleCharEvent(codepoint);
     }
 }
 

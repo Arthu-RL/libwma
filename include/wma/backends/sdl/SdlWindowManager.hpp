@@ -33,15 +33,19 @@ namespace wma {
         [[nodiscard]] bool isSurfaceAvailable() const override;
         void* getNativeDisplayHandle() const noexcept override;
         void* getGLProcAddress(const char* name) const override;
+        [[nodiscard]] void* getMetalLayer() const noexcept override;
         SoftwareFramebuffer lockFramebuffer() override;
         void presentFramebuffer() override;
         u64 getSDLWindowFlags() const;
         WindowFlags* getWindowFlags() noexcept override;
+        [[nodiscard]] FramebufferSize getFramebufferSize() noexcept override;
         const WindowDetails* getWindowDetails() noexcept override;
         const std::vector<const char*> getVulkanExtensions() const override;
         KeyboardListener& getKeyboardListener() noexcept override;
         MouseListener& getMouseListener() noexcept override;
         TouchListener& getTouchListener() noexcept override;
+        void setTextInputEnabled(bool enabled) noexcept override;
+        [[nodiscard]] bool isTextInputEnabled() const noexcept override;
         bool shouldClose() const override;
         WindowBackend getBackendType() const override;
         GraphicsAPI getGraphicsAPI() const override;
@@ -51,6 +55,15 @@ namespace wma {
         SDL_Window* window_;
         void* glContext_; //!< SDL_GLContext (opaque) — OpenGL mode only
         void* windowSurface_; //!< SDL_Surface* held between lock/present (CPU mode)
+
+        //! SDL_MetalView (opaque) — Metal mode only. SDL requires it be destroyed
+        //! before its window, so it is owned here rather than left to
+        //! SDL_DestroyWindow.
+        void* metalView_;
+        //! CAMetalLayer* owned by metalView_, cached so getMetalLayer() stays a
+        //! plain accessor. Non-owning.
+        void* metalLayer_;
+
         WindowDetails windowDetails_;
         WindowFlags windowFlags_;
         GraphicsAPI graphicsAPI_;

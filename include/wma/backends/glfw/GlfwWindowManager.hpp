@@ -36,10 +36,14 @@ namespace wma {
         void swapBuffers() override;
         void* getWindowInstance() override;
         void* getGLProcAddress(const char* name) const override;
+        [[nodiscard]] void* getMetalLayer() const noexcept override;
         WindowFlags* getWindowFlags() noexcept override;
+        [[nodiscard]] FramebufferSize getFramebufferSize() noexcept override;
         const WindowDetails* getWindowDetails() noexcept override;
         const std::vector<const char*> getVulkanExtensions() const override;
         KeyboardListener& getKeyboardListener() noexcept override;
+        void setTextInputEnabled(bool enabled) noexcept override;
+        [[nodiscard]] bool isTextInputEnabled() const noexcept override;
         MouseListener& getMouseListener() noexcept override;
         bool shouldClose() const override;
         WindowBackend getBackendType() const override;
@@ -48,6 +52,9 @@ namespace wma {
 
     private:
         GLFWwindow* window_;
+        //! CAMetalLayer* attached to the window's content view — Metal mode only.
+        //! Owned by that view (and so by the window), not by this object.
+        void* metalLayer_;
         WindowDetails windowDetails_;
         WindowFlags windowFlags_;
         GraphicsAPI graphicsAPI_;

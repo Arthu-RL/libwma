@@ -39,7 +39,7 @@ void webLoopTick(void* userData) {
     ctx->manager->pollEvents();
     ctx->actions();
     ctx->manager->swapBuffers();
-    ctx->timer.endFrame(/*limit=*/false); // the browser paces via rAF
+    ctx->timer.endFrame();
 }
 
 } // namespace
@@ -67,7 +67,7 @@ void IWindowManager::process(std::function<void()>&& actions) {
         pollEvents();
         actions();
         swapBuffers();
-        timer.endFrame(/*limit=*/true);
+        timer.endFrame();
     }
 }
 

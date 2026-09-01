@@ -97,7 +97,23 @@ const char* getLibraryInfo() noexcept {
 #ifdef WMA_ENABLE_X11
         " X11"
 #endif
+        //! Listed on their own line because audio is a separate axis from
+        //! windowing: any window backend pairs with any audio backend. Null
+        //! leads because it is the one that is always compiled in.
+        "\nAudio backends: Null"
+#ifdef WMA_ENABLE_ALSA
+        " ALSA"
+#endif
+#ifdef WMA_ENABLE_SDL
+        " SDL3"
+#endif
         "\nGraphics APIs: OpenGL Vulkan CPU"
+#if WMA_HAS_METAL
+        //! Reported from WMA_HAS_METAL rather than unconditionally: it is the only
+        //! graphics API whose availability depends on the target platform, not
+        //! just on which backends were compiled in.
+        " Metal"
+#endif
         "\nBuilt with C++23";
     return info;
 }

@@ -66,6 +66,21 @@ public:
     [[nodiscard]] bool hasButtonAction(i32 button, InputContextId context) const;
 
     [[nodiscard]] WMAMousePosition getCurrentPosition() const;
+
+    /**
+     * @brief Returns the wheel movement accumulated since the last call, and
+     *        resets the accumulator.
+     *
+     * The polling counterpart to setScrollAction(), and the reason it exists: a
+     * context holds exactly one scroll action, so a second subscriber would
+     * displace the first. An overlay that wants the wheel without taking it
+     * away from the application polls this instead -- the same arrangement
+     * getCurrentPosition() already provides for cursor motion.
+     *
+     * Accumulated rather than latched, so several events arriving between two
+     * frames are all seen: a fast flick is many notches, not one.
+     */
+    [[nodiscard]] WMAMouseScroll consumeScrollDelta() noexcept;
     void setCursorEnabled(bool enabled);
     [[nodiscard]] bool isCursorEnabled() const;
     void setSensitivity(f64 sensitivity);
@@ -90,6 +105,10 @@ protected:
 
     WMAMousePosition currentPosition_;
     WMAMousePosition lastPosition_;
+
+    //! Drained by consumeScrollDelta(); see it for why this is accumulated
+    //! rather than simply holding the most recent event.
+    WMAMouseScroll accumulatedScroll_{};
 
     bool cursorEnabled_ = true;
     f64  sensitivity_   = 1.0;

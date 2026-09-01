@@ -45,6 +45,20 @@ namespace wma {
             : WMAException("Graphics Error: " + message) {}
     };
 
+    /**
+     * @brief Audio-specific exception
+     *
+     * Thrown only when an audio device cannot be *constructed* — a backend that
+     * was not compiled into this build. A device that merely fails to open (no
+     * hardware, device busy, format refused) reports WmaCode::Error instead, so
+     * createAudioDevice() can degrade to the next backend rather than unwind.
+     */
+    class AudioException : public WMAException {
+    public:
+        explicit AudioException(const std::string& message)
+            : WMAException("Audio Error: " + message) {}
+    };
+
 } // namespace wma
 
 #endif // WMA_EXCEPTIONS_WMA_EXCEPTION_HPP

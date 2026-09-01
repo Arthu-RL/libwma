@@ -8,6 +8,19 @@ if(ANDROID)
     set(_WMA_PLATFORM "android")
 elseif(EMSCRIPTEN)
     set(_WMA_PLATFORM "wasm")
+elseif(APPLE)
+    # Mirrors the linux branch below, for this project's own
+    # macos-debug/macos-release/ios presets. iOS gets its own prefix rather than
+    # sharing macOS's: an ink installed there is cross-compiled for
+    # arm64-apple-ios and is not linkable into a macOS build (or vice versa), so
+    # one prefix for both would silently offer the wrong slice.
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        set(_WMA_PLATFORM "ios")
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(_WMA_PLATFORM "macos/debug")
+    else()
+        set(_WMA_PLATFORM "macos/release")
+    endif()
 else()
     # libink's linux presets install to linux/debug or linux/release
     # (single-config Ninja generator, so CMAKE_BUILD_TYPE is known here).
@@ -25,16 +38,26 @@ unset(_WMA_PLATFORM)
 
 find_package(ink REQUIRED CONFIG)
 
-# Backend options. Defaults are OFF so a build explicitly opts into what it needs;
-# Platform.cmake forces SDL3 ON for Android/WASM.
+# Windowing backend options. Defaults are OFF so a build explicitly opts into
+# what it needs; Platform.cmake forces SDL3 ON for Android/WASM.
 option(WMA_ENABLE_SDL     "Enable SDL3 backend"    OFF)
 option(WMA_ENABLE_GLFW    "Enable GLFW backend"    OFF)
 option(WMA_ENABLE_X11     "Enable X11 backend"     OFF)
 option(WMA_ENABLE_WAYLAND "Enable Wayland backend" OFF)
 
+# Audio backend options. A separate axis from the windowing backends above:
+# GLFW/X11/Wayland have no audio API, and SDL3's audio and windowing halves are
+# independently useful, so a build picks one from each list. There is no option
+# for the null audio device -- it depends on nothing and is always compiled, so
+# that a build with no audio backend at all still links and simply plays
+# silence (unlike the windowing case, which can only throw).
+option(WMA_ENABLE_ALSA "Enable ALSA native audio backend" OFF)
+
 # The native desktop backends do not exist on Android/WASM; only SDL3 survives.
+# ALSA is in this list for audio: Android routes through AAudio/OpenSL ES and
+# the web through Web Audio, both of which SDL3 already covers.
 if(ANDROID OR EMSCRIPTEN)
-    foreach(_backend GLFW X11 WAYLAND)
+    foreach(_backend GLFW X11 WAYLAND ALSA)
         if(WMA_ENABLE_${_backend})
             message(WARNING
                 "[wma] WMA_ENABLE_${_backend} is not supported on "
@@ -45,9 +68,11 @@ if(ANDROID OR EMSCRIPTEN)
     endforeach()
 endif()
 
-# X11/Wayland are Linux windowing protocols; only SDL3/GLFW exist on Windows.
+# X11/Wayland are Linux windowing protocols and ALSA is the Linux audio stack;
+# on Windows only SDL3/GLFW exist, and audio goes through SDL3 (WASAPI
+# underneath).
 if(WIN32 AND NOT EMSCRIPTEN)
-    foreach(_backend X11 WAYLAND)
+    foreach(_backend X11 WAYLAND ALSA)
         if(WMA_ENABLE_${_backend})
             message(WARNING
                 "[wma] WMA_ENABLE_${_backend} is not supported on Windows — "
@@ -56,6 +81,18 @@ if(WIN32 AND NOT EMSCRIPTEN)
         endif()
         set(WMA_ENABLE_${_backend} OFF CACHE BOOL "" FORCE)
     endforeach()
+endif()
+
+# Apple platforms: audio is CoreAudio, reached through SDL3. libasound has no
+# port there at all.
+if(APPLE)
+    if(WMA_ENABLE_ALSA)
+        message(WARNING
+            "[wma] WMA_ENABLE_ALSA is not supported on Apple platforms — "
+            "forcing OFF (use SDL3, which routes to CoreAudio)"
+        )
+    endif()
+    set(WMA_ENABLE_ALSA OFF CACHE BOOL "" FORCE)
 endif()
 
 if(NOT WMA_ENABLE_SDL AND NOT WMA_ENABLE_GLFW AND NOT WMA_ENABLE_X11 AND NOT WMA_ENABLE_WAYLAND)
@@ -71,6 +108,13 @@ endif()
 
 if(WMA_ENABLE_GLFW)
     find_package(glfw3 REQUIRED)
+endif()
+
+# libasound ships a pkg-config file but no CMake config package, so this goes
+# through PkgConfig the same way the Wayland client libraries below do.
+if(WMA_ENABLE_ALSA)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
 endif()
 
 set(WMA_ENABLE_X11_GL     FALSE)

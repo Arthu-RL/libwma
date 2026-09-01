@@ -8,6 +8,13 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
+#ifdef __APPLE__
+//! SDL's Metal helpers. Compiled in only for Apple builds: SDL_Metal_CreateView
+//! has no implementation on any other platform, so a GraphicsAPI::Metal request
+//! elsewhere is rejected at createWindow() rather than left to fail obscurely.
+#include <SDL3/SDL_metal.h>
+#endif
+
 #include <atomic>
 #include <chrono>
 #include <thread>
@@ -25,6 +32,8 @@ namespace {
         : window_(nullptr)
         , glContext_(nullptr)
         , windowSurface_(nullptr)
+        , metalView_(nullptr)
+        , metalLayer_(nullptr)
         , windowDetails_(windowDetails)
         , windowFlags_{}
         , graphicsAPI_(graphicsAPI)
@@ -45,6 +54,8 @@ namespace {
         : window_(std::exchange(other.window_, nullptr))
         , glContext_(std::exchange(other.glContext_, nullptr))
         , windowSurface_(std::exchange(other.windowSurface_, nullptr))
+        , metalView_(std::exchange(other.metalView_, nullptr))
+        , metalLayer_(std::exchange(other.metalLayer_, nullptr))
         , windowDetails_(std::move(other.windowDetails_))
         , windowFlags_(std::move(other.windowFlags_))
         , graphicsAPI_(other.graphicsAPI_)
@@ -62,6 +73,8 @@ namespace {
             window_ = std::exchange(other.window_, nullptr);
             glContext_ = std::exchange(other.glContext_, nullptr);
             windowSurface_ = std::exchange(other.windowSurface_, nullptr);
+            metalView_ = std::exchange(other.metalView_, nullptr);
+            metalLayer_ = std::exchange(other.metalLayer_, nullptr);
             windowDetails_ = std::move(other.windowDetails_);
             windowFlags_ = std::move(other.windowFlags_);
             graphicsAPI_ = other.graphicsAPI_;
@@ -88,6 +101,15 @@ namespace {
                 break;
             case GraphicsAPI::CPU:
                 break;
+            case GraphicsAPI::Metal:
+#ifdef __APPLE__
+                windowFlags |= SDL_WINDOW_METAL;
+                break;
+#else
+                throw GraphicsException(
+                    "Metal is an Apple-only graphics API; this build of wma targets "
+                    "another platform (use Vulkan/OpenGL/CPU)");
+#endif
             default:
                 throw GraphicsException("Unsupported graphics API for SDL");
         }
@@ -126,6 +148,38 @@ namespace {
             SDL_GL_MakeCurrent(window_, static_cast<SDL_GLContext>(glContext_));
             SDL_GL_SetSwapInterval(windowDetails_.vsync ? 1 : 0);
         }
+
+#ifdef __APPLE__
+        if (graphicsAPI_ == GraphicsAPI::Metal) {
+            /*
+             * SDL adds the platform's Metal-backed view (NSView on macOS, UIView
+             * on iOS) to the window and gives its CAMetalLayer the right
+             * contentsScale for the display -- which is why the SDL route needs
+             * no AppKit/UIKit code here, unlike the GLFW one.
+             *
+             * The layer arrives with no MTLDevice attached; that is the
+             * renderer's to set, along with the pixel format. wma deliberately
+             * does not choose either: both are the renderer's contract with its
+             * own pipelines, and a window library guessing at them is how a
+             * backend ends up fighting its own swapchain format.
+             */
+            metalView_ = SDL_Metal_CreateView(window_);
+            if (!metalView_) {
+                SDL_DestroyWindow(window_);
+                window_ = nullptr;
+                throw GraphicsException("Failed to create SDL Metal view: " + std::string(SDL_GetError()));
+            }
+
+            metalLayer_ = SDL_Metal_GetLayer(metalView_);
+            if (!metalLayer_) {
+                SDL_Metal_DestroyView(metalView_);
+                metalView_ = nullptr;
+                SDL_DestroyWindow(window_);
+                window_ = nullptr;
+                throw GraphicsException("SDL Metal view has no CAMetalLayer");
+            }
+        }
+#endif
 
         keyboardListener_->initialize(window_);
         mouseListener_->initialize(window_);
@@ -172,6 +226,9 @@ namespace {
                 case SDL_EVENT_KEY_DOWN:
                 case SDL_EVENT_KEY_UP:
                     keyboardListener_->handleKeyEvent(event.key);
+                    break;
+                case SDL_EVENT_TEXT_INPUT:
+                    keyboardListener_->handleTextInputEvent(event.text);
                     break;
                 case SDL_EVENT_MOUSE_BUTTON_DOWN:
                 case SDL_EVENT_MOUSE_BUTTON_UP:
@@ -267,9 +324,15 @@ namespace {
     void* SdlWindowManager::getNativeDisplayHandle() const noexcept { return nullptr; }
 
     void* SdlWindowManager::getGLProcAddress(const char* name) const {
-        if (graphicsAPI_ != GraphicsAPI::OpenGL) 
+        if (graphicsAPI_ != GraphicsAPI::OpenGL)
             return nullptr;
         return reinterpret_cast<void*>(SDL_GL_GetProcAddress(name));
+    }
+
+    void* SdlWindowManager::getMetalLayer() const noexcept {
+        //! Null on every non-Metal window, and on every non-Apple build, where
+        //! createWindow() has already refused the request.
+        return metalLayer_;
     }
 
     SoftwareFramebuffer SdlWindowManager::lockFramebuffer() {
@@ -299,6 +362,18 @@ namespace {
         return window_ ? SDL_GetWindowFlags(window_) : 0;
     }
 
+    FramebufferSize SdlWindowManager::getFramebufferSize() noexcept {
+        int width = 0;
+        int height = 0;
+
+        //! SDL_GetWindowSizeInPixels, not SDL_GetWindowSize: the latter reports
+        //! the logical size, which the base implementation already covers.
+        if (window_)
+            SDL_GetWindowSizeInPixels(window_, &width, &height);
+
+        return FramebufferSize{ width > 0 ? width : 1, height > 0 ? height : 1 };
+    }
+
     WindowFlags* SdlWindowManager::getWindowFlags() noexcept { return &windowFlags_; }
     const WindowDetails* SdlWindowManager::getWindowDetails() noexcept { return &windowDetails_; }
 
@@ -314,6 +389,16 @@ namespace {
     }
 
     KeyboardListener& SdlWindowManager::getKeyboardListener() noexcept { return *keyboardListener_; }
+
+    void SdlWindowManager::setTextInputEnabled(bool enabled) noexcept {
+        //! SDL is the one backend where this genuinely gates delivery -- and,
+        //! on Android/iOS, raises the on-screen keyboard.
+        if (keyboardListener_) keyboardListener_->setTextInputEnabled(enabled);
+    }
+
+    bool SdlWindowManager::isTextInputEnabled() const noexcept {
+        return keyboardListener_ && keyboardListener_->isTextInputEnabled();
+    }
     MouseListener& SdlWindowManager::getMouseListener() noexcept { return *mouseListener_; }
     TouchListener& SdlWindowManager::getTouchListener() noexcept { return *touchListener_; }
     bool SdlWindowManager::shouldClose() const { return windowShouldClose_; }
@@ -333,6 +418,10 @@ namespace {
                 break;
             case SDL_EVENT_WINDOW_FOCUS_LOST:
                 windowFlags_.focused = false;
+                //! Keys released while another window had focus never reach us,
+                //! so anything held at this moment would otherwise stay stuck
+                //! down -- most visibly a modifier held through an Alt-Tab.
+                keyboardListener_->releaseAllKeys();
                 break;
             case SDL_EVENT_WINDOW_MINIMIZED:
                 windowFlags_.minimized = true;
@@ -391,6 +480,17 @@ namespace {
 
         if (graphicsAPI_ == GraphicsAPI::Vulkan && ownsSubsystem_)
             SDL_Vulkan_UnloadLibrary();
+
+#ifdef __APPLE__
+        //! Before SDL_DestroyWindow, as SDL_Metal_CreateView's contract requires.
+        //! The layer belongs to the view, so it dies with it.
+        if (metalView_)
+        {
+            SDL_Metal_DestroyView(metalView_);
+            metalView_ = nullptr;
+        }
+#endif
+        metalLayer_ = nullptr;
 
         if (window_)
         {
