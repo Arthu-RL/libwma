@@ -76,6 +76,14 @@ void WaylandKeyboardListener::initialize(wl_keyboard* keyboard)
     if (!keyboard) {
         throw InputException("Invalid Wayland keyboard pointer");
     }
+
+    //! Idempotent: the seat's capabilities callback subscribes as soon as the
+    //! keyboard exists, and setupInputDevices() still calls this for the case
+    //! where it has not fired yet. libwayland rejects a second listener on the
+    //! same proxy, so the repeat has to be absorbed here.
+    if (keyboard_ == keyboard)
+        return;
+
     keyboard_ = keyboard;
     wl_keyboard_add_listener(keyboard_, &keyboardListener_, this);
 }

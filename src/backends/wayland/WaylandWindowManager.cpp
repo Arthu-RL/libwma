@@ -594,7 +594,21 @@ void WaylandWindowManager::handleSeatCapabilities(void* data, wl_seat* seat,
     if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) 
     {
         if (!manager->keyboard_)
+        {
             manager->keyboard_ = wl_seat_get_keyboard(seat);
+
+            /*
+             * Subscribed here rather than in setupInputDevices(): the
+             * compositor sends the keymap immediately in reply to
+             * get_keyboard, and libwayland drops an event that reaches a proxy
+             * with no listener. Attaching one roundtrip later therefore misses
+             * the only keymap event there is, leaving xkb uninitialised -- keys
+             * still dispatch (they come from a static evdev table) but no text
+             * is ever produced, so a text field focuses and then ignores
+             * everything typed into it.
+             */
+            manager->keyboardListener_->initialize(manager->keyboard_);
+        }
     } else {
         if (manager->keyboard_) 
         {
