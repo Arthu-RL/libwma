@@ -2,6 +2,12 @@
 
 All notable changes to libwma are documented in this file.
 
+## [0.2.1]
+
+### Fixed
+
+- `AlsaAudioDevice`: periodic audible pops on a CPU-contended machine. The writer thread ran at ordinary priority with no core of its own, so a busy render thread could starve it past its ~21ms period; the underrun that followed was recovered (`snd_pcm_recover`) but still audible, and silently so — the recovery call passes ALSA's own `silent` flag, so nothing showed up in the log either. Three changes: `kPeriodsOfLatency` raised from 2 to 3, so a missed wakeup is absorbed as latency instead of a dropout; the writer thread now requests `SCHED_FIFO` (best-effort — silently a no-op without `CAP_SYS_NICE`, the common case in a container); and it pins itself to the last CPU via `pthread_setaffinity_np` (skipped below two cores) so unrelated CPU-bound work is scheduled onto a *different* core rather than merely outranked on the same one
+
 ## [0.2.0]
 
 ### Added
