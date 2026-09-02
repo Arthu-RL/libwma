@@ -260,6 +260,13 @@ jobs:
     # SDL3 is built from source rather than installed: Homebrew ships
     # macOS-native binaries only, so its sdl3 bottle cannot be linked into an
     # iOS target.
+    #
+    # 16.3 is the floor rather than 16.0 because libc++'s <format> is
+    # availability-gated: its floating-point path calls std::to_chars, which
+    # Apple marks as introduced in iOS 16.3, so ink (which formats its log
+    # timestamps with std::format_to) does not compile below it. All three
+    # builds below use the same value so nothing links against a slice with a
+    # different minimum.
     steps:
       - name: Checkout wma
         uses: actions/checkout@v4
@@ -293,7 +300,7 @@ jobs:
             -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.3 \
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL_SHARED=OFF \
             -DSDL_STATIC=ON \
@@ -308,7 +315,7 @@ jobs:
             -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.3 \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH \
             -DINK_BUILD_TESTS=OFF \
@@ -325,7 +332,7 @@ jobs:
           -DCMAKE_SYSTEM_NAME=iOS
           -DCMAKE_OSX_SYSROOT=iphoneos
           -DCMAKE_OSX_ARCHITECTURES=arm64
-          -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=16.3
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH
           -DCMAKE_PREFIX_PATH="${{ github.workspace }}/deps-ios"
@@ -367,8 +374,10 @@ jobs:
       - name: Install dependencies (vcpkg)
         # windows-latest ships vcpkg preinstalled at $VCPKG_INSTALLATION_ROOT.
         # nlohmann_json is ink's dependency; SDL3/GLFW are wma's. The static
-        # triplet matches the /MT-equivalent static-library build both
-        # libraries produce.
+        # triplet builds these ports against the static CRT (/MT), which is why
+        # every Configure step below passes CMAKE_MSVC_RUNTIME_LIBRARY: CMake
+        # otherwise defaults the project itself to /MD and the link fails with
+        # LNK2038.
         run: >
           vcpkg install
           nlohmann-json:x64-windows-static
@@ -381,6 +390,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
           -DINK_BUILD_TESTS=OFF
           -DINK_NATIVE_OPTIMIZE=OFF
 
@@ -398,6 +408,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
           -DCMAKE_PREFIX_PATH="${{ github.workspace }}/ink/stage"
           -DWMA_BUILD_EXAMPLES=ON
           -DWMA_BUILD_TESTS=OFF

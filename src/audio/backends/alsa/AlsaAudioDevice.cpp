@@ -3,9 +3,12 @@
 #include "wma/audio/backends/alsa/AlsaAudioDevice.hpp"
 
 #include <algorithm>
+#include <thread>
 #include <utility>
 
 #include <alsa/asoundlib.h>
+#include <pthread.h>
+#include <sched.h>
 
 #include <ink/Inkogger.h>
 
@@ -22,9 +25,55 @@ namespace {
     constexpr const char* kDefaultDeviceName = "default";
 
     //! Periods of slack between the application and the hardware pointer.
-    //! Two is the usual minimum for a double-buffered write loop: one period
-    //! playing while the next is being mixed.
-    constexpr u32 kPeriodsOfLatency = 2;
+    //! Three rather than the double-buffered minimum of two: the writer
+    //! thread is ordinary-priority whenever setWriterRealtimePriority()
+    //! below can't get SCHED_FIFO (the common case outside a container with
+    //! CAP_SYS_NICE), so it has no scheduling guarantee against a CPU-heavy
+    //! render thread stealing its core for longer than one period. One
+    //! extra period of buffer absorbs a missed wakeup as added latency
+    //! instead of an audible underrun.
+    constexpr u32 kPeriodsOfLatency = 3;
+
+    //! Best-effort real-time priority for the calling thread, so the kernel
+    //! preempts CPU-bound work (a software rasterizer with no FPS cap, say)
+    //! to let it refill the hardware buffer on schedule instead of starving
+    //! it into an underrun. Silently a no-op without CAP_SYS_NICE or an
+    //! rtprio limit -- the ordinary case in a container or unprivileged
+    //! process -- which is why kPeriodsOfLatency above does not depend on
+    //! this succeeding.
+    void setWriterRealtimePriority() noexcept
+    {
+        sched_param param{};
+        param.sched_priority = sched_get_priority_min(SCHED_FIFO) + 10;
+        pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
+    }
+
+    //! Reserves the last CPU for this thread, so an unrelated CPU-bound
+    //! thread elsewhere in the process (a software rasterizer with no FPS
+    //! cap, say) has to be scheduled on a *different* core rather than
+    //! merely being outranked on a shared one -- a guarantee priority alone
+    //! doesn't give, and one that (unlike SCHED_FIFO above) does not need
+    //! CAP_SYS_NICE. Skipped below two cores: there is nothing to reserve
+    //! from, and restricting the only core would just add contention with
+    //! nowhere else to run.
+    //!
+    //! Only isolates this thread, not the other side -- nothing here stops
+    //! aura3d::JobSystem's worker pool from also landing on the reserved
+    //! core, which on a fully-saturated worker count (every core requested)
+    //! it will. The absolute guarantee needs the engine's own thread pool to
+    //! leave this core out of its affinity too; this is the half wma can
+    //! give unilaterally.
+    void setWriterCoreAffinity() noexcept
+    {
+        const unsigned cores = std::thread::hardware_concurrency();
+        if (cores < 2)
+            return;
+
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(cores - 1, &cpuset);
+        pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
+    }
 } // namespace
 
 AlsaAudioDevice::~AlsaAudioDevice()
@@ -195,6 +244,9 @@ AudioBackend AlsaAudioDevice::getBackendType() const noexcept
 
 void AlsaAudioDevice::writerLoop(std::stop_token stopToken)
 {
+    setWriterRealtimePriority();
+    setWriterCoreAffinity();
+
     const snd_pcm_uframes_t periodFrames = _config.framesPerBuffer;
 
     while (!stopToken.stop_requested() && _running.load(std::memory_order_acquire))
