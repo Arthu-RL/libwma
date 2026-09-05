@@ -5,7 +5,9 @@
 #include "wma/backends/wayland/WaylandWindowManager.hpp"
 #include "wma/exceptions/WMAException.hpp"
 
+#include <cerrno>
 #include <cstring>
+#include <poll.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <utility>
@@ -86,7 +88,7 @@ WaylandWindowManager::WaylandWindowManager(const WindowDetails& windowDetails,
     , graphicsAPI_(graphicsAPI)
     , windowShouldClose_(false)
     , configured_(false)
-    , keyboardListener_(std::make_unique<WaylandKeyboardListener>())
+    , keyboardListener_(std::make_unique<WaylandKeyboardListener>(&windowFlags_))
     , mouseListener_(std::make_unique<WaylandMouseListener>())
 {
 }
@@ -127,6 +129,7 @@ WaylandWindowManager::WaylandWindowManager(WaylandWindowManager&& other) noexcep
     , keyboardListener_(std::move(other.keyboardListener_))
     , mouseListener_(std::move(other.mouseListener_))
 {
+    rebindListeners();
 }
 
 WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& other) noexcept
@@ -163,8 +166,24 @@ WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& oth
         configured_ = other.configured_;
         keyboardListener_ = std::move(other.keyboardListener_);
         mouseListener_ = std::move(other.mouseListener_);
+        rebindListeners();
     }
     return *this;
+}
+
+void WaylandWindowManager::rebindListeners() noexcept
+{
+    if (keyboardListener_)
+        keyboardListener_->setWindowFlags(&windowFlags_);
+    const auto rebind = [this](auto* proxy) {
+        if (proxy)
+            wl_proxy_set_user_data(reinterpret_cast<wl_proxy*>(proxy), this);
+    };
+    rebind(registry_);
+    rebind(seat_);
+    rebind(xdgWmBase_);
+    rebind(xdgSurface_);
+    rebind(xdgToplevel_);
 }
 
 void WaylandWindowManager::createWindow(const char* windowName)
@@ -355,16 +374,33 @@ void WaylandWindowManager::pollEvents()
     if (!display_) 
         return;
 
-    wl_display_dispatch_pending(display_);
-
-    if (wl_display_prepare_read(display_) == 0) 
-    {
-        wl_display_flush(display_);
-        wl_display_read_events(display_);
-        wl_display_dispatch_pending(display_);
-    } else {
-        wl_display_dispatch_pending(display_);
+    while (wl_display_prepare_read(display_) != 0) {
+        if (wl_display_dispatch_pending(display_) < 0) {
+            windowShouldClose_ = true;
+            return;
+        }
     }
+
+    if (wl_display_flush(display_) < 0 && errno != EAGAIN) {
+        wl_display_cancel_read(display_);
+        windowShouldClose_ = true;
+        return;
+    }
+
+    //! read_events waits for the compositor; pollEvents must never wait for input.
+    pollfd ready{wl_display_get_fd(display_), POLLIN, 0};
+    const int result = poll(&ready, 1, 0);
+    if (result > 0 && (ready.revents & POLLIN)) {
+        if (wl_display_read_events(display_) < 0)
+            windowShouldClose_ = true;
+    } else {
+        wl_display_cancel_read(display_);
+        if ((result < 0 && errno != EINTR) || (ready.revents & (POLLERR | POLLHUP | POLLNVAL)))
+            windowShouldClose_ = true;
+    }
+
+    if (wl_display_dispatch_pending(display_) < 0)
+        windowShouldClose_ = true;
 }
 
 void WaylandWindowManager::swapBuffers()
@@ -612,18 +648,23 @@ void WaylandWindowManager::handleSeatCapabilities(void* data, wl_seat* seat,
     } else {
         if (manager->keyboard_) 
         {
+            manager->keyboardListener_->detach();
+            manager->windowFlags_.focused = false;
             wl_keyboard_destroy(manager->keyboard_);
             manager->keyboard_ = nullptr;
         }
     }
 
     if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
-        if (!manager->pointer_)
+        if (!manager->pointer_) {
             manager->pointer_ = wl_seat_get_pointer(seat);
+            manager->mouseListener_->initialize(manager->pointer_, manager->compositor_, manager->shm_);
+        }
 
     } else {
         if (manager->pointer_) 
         {
+            manager->mouseListener_->detach();
             wl_pointer_destroy(manager->pointer_);
             manager->pointer_ = nullptr;
         }

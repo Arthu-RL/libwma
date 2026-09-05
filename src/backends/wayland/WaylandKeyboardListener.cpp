@@ -3,6 +3,8 @@
 #include "wma/input/keyboard/Utf8.hpp"
 #include "wma/exceptions/WMAException.hpp"
 
+#include "wma/core/WindowFlags.hpp"
+
 #include <array>
 #include <cstdlib>
 #include <string_view>
@@ -24,20 +26,24 @@ const wl_keyboard_listener WaylandKeyboardListener::keyboardListener_ = {
     .repeat_info = handleRepeatInfoCallback
 };
 
-WaylandKeyboardListener::WaylandKeyboardListener()
+WaylandKeyboardListener::WaylandKeyboardListener(WindowFlags* flags)
     : KeyboardListener()
     , keyboard_(nullptr)
+    , windowFlags_(flags)
 {
 }
 
 WaylandKeyboardListener::~WaylandKeyboardListener()
 {
-    destroyXkb();
+    detach();
+}
 
-    if (keyboard_) {
-        wl_keyboard_destroy(keyboard_);
-        keyboard_ = nullptr;
-    }
+void WaylandKeyboardListener::detach() noexcept
+{
+    //! The window manager owns the seat proxy; this listener only borrows it.
+    keyboard_ = nullptr;
+    releaseAllKeys();
+    destroyXkb();
 }
 
 void WaylandKeyboardListener::destroyXkb() noexcept
@@ -173,10 +179,14 @@ void WaylandKeyboardListener::handleKeymap(u32 format, i32 fd, u32 size)
 
 void WaylandKeyboardListener::handleEnter(u32, wl_surface*, wl_array*)
 {
+    if (windowFlags_)
+        windowFlags_->focused = true;
 }
 
 void WaylandKeyboardListener::handleLeave(u32, wl_surface*)
 {
+    if (windowFlags_)
+        windowFlags_->focused = false;
     //! Releases that land while another surface holds focus never reach us, so
     //! anything still marked held would stay stuck down -- most visibly a
     //! modifier held across a focus switch.

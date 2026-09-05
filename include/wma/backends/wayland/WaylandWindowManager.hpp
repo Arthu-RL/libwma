@@ -46,6 +46,7 @@ public:
     wl_surface* getSurface() const { return surface_; }
 
 private:
+    void rebindListeners() noexcept;
     wl_display* display_;
     wl_registry* registry_;
     wl_compositor* compositor_;

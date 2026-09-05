@@ -41,7 +41,9 @@ WaylandMouseListener::WaylandMouseListener()
 {
 }
 
-WaylandMouseListener::~WaylandMouseListener()
+WaylandMouseListener::~WaylandMouseListener() { detach(); }
+
+void WaylandMouseListener::detach() noexcept
 {
     if (cursorTheme_) {
         wl_cursor_theme_destroy(cursorTheme_);
@@ -51,10 +53,8 @@ WaylandMouseListener::~WaylandMouseListener()
         wl_surface_destroy(cursorSurface_);
         cursorSurface_ = nullptr;
     }
-    if (pointer_) {
-        wl_pointer_destroy(pointer_);
-        pointer_ = nullptr;
-    }
+    //! The window manager owns the seat proxy.
+    pointer_ = nullptr;
 }
 
 void WaylandMouseListener::initialize(wl_pointer* pointer, wl_compositor* compositor, wl_shm* shm)
@@ -62,6 +62,9 @@ void WaylandMouseListener::initialize(wl_pointer* pointer, wl_compositor* compos
     if (!pointer) {
         throw InputException("Invalid Wayland pointer");
     }
+    if (pointer_ == pointer)
+        return;
+    detach();
     pointer_ = pointer;
     wl_pointer_add_listener(pointer_, &pointerListener_, this);
 
