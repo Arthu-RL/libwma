@@ -5,7 +5,10 @@
 #include "wma/backends/wayland/WaylandWindowManager.hpp"
 #include "wma/exceptions/WMAException.hpp"
 
+#include <cerrno>
+#include <algorithm>
 #include <cstring>
+#include <poll.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <utility>
@@ -58,8 +61,10 @@ const xdg_toplevel_listener WaylandWindowManager::xdgToplevelListener_ = {
 };
 
 WaylandWindowManager::WaylandWindowManager(const WindowDetails& windowDetails,
-                                           GraphicsAPI graphicsAPI)
-    : display_(nullptr)
+                                           GraphicsAPI graphicsAPI,
+                                           std::unique_ptr<WaylandSurfaceRole> role)
+    : role_(std::move(role))
+    , display_(nullptr)
     , registry_(nullptr)
     , compositor_(nullptr)
     , surface_(nullptr)
@@ -86,7 +91,7 @@ WaylandWindowManager::WaylandWindowManager(const WindowDetails& windowDetails,
     , graphicsAPI_(graphicsAPI)
     , windowShouldClose_(false)
     , configured_(false)
-    , keyboardListener_(std::make_unique<WaylandKeyboardListener>())
+    , keyboardListener_(std::make_unique<WaylandKeyboardListener>(&windowFlags_))
     , mouseListener_(std::make_unique<WaylandMouseListener>())
 {
 }
@@ -97,7 +102,8 @@ WaylandWindowManager::~WaylandWindowManager()
 }
 
 WaylandWindowManager::WaylandWindowManager(WaylandWindowManager&& other) noexcept
-    : display_(std::exchange(other.display_, nullptr))
+    : role_(std::move(other.role_))
+    , display_(std::exchange(other.display_, nullptr))
     , registry_(std::exchange(other.registry_, nullptr))
     , compositor_(std::exchange(other.compositor_, nullptr))
     , surface_(std::exchange(other.surface_, nullptr))
@@ -127,6 +133,7 @@ WaylandWindowManager::WaylandWindowManager(WaylandWindowManager&& other) noexcep
     , keyboardListener_(std::move(other.keyboardListener_))
     , mouseListener_(std::move(other.mouseListener_))
 {
+    rebindListeners();
 }
 
 WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& other) noexcept
@@ -134,6 +141,7 @@ WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& oth
     if (this != &other) {
         destroy();
 
+        role_ = std::move(other.role_);
         display_ = std::exchange(other.display_, nullptr);
         registry_ = std::exchange(other.registry_, nullptr);
         compositor_ = std::exchange(other.compositor_, nullptr);
@@ -163,12 +171,32 @@ WaylandWindowManager& WaylandWindowManager::operator=(WaylandWindowManager&& oth
         configured_ = other.configured_;
         keyboardListener_ = std::move(other.keyboardListener_);
         mouseListener_ = std::move(other.mouseListener_);
+        rebindListeners();
     }
     return *this;
 }
 
+void WaylandWindowManager::rebindListeners() noexcept
+{
+    if (role_)
+        role_->rebind(&windowDetails_, &windowFlags_);
+    if (keyboardListener_)
+        keyboardListener_->setWindowFlags(&windowFlags_);
+    const auto rebind = [this](auto* proxy) {
+        if (proxy)
+            wl_proxy_set_user_data(reinterpret_cast<wl_proxy*>(proxy), this);
+    };
+    rebind(registry_);
+    rebind(seat_);
+    rebind(xdgWmBase_);
+    rebind(xdgSurface_);
+    rebind(xdgToplevel_);
+}
+
 void WaylandWindowManager::createWindow(const char* windowName)
 {
+    if (role_ && graphicsAPI_ != GraphicsAPI::Vulkan)
+        throw GraphicsException("Custom Wayland surface roles currently require Vulkan");
     display_ = wl_display_connect(nullptr);
     if (!display_)
         throw WindowException("Failed to connect to Wayland display (is WAYLAND_DISPLAY set?)");
@@ -181,11 +209,14 @@ void WaylandWindowManager::createWindow(const char* windowName)
     if (!compositor_)
         throw WindowException("Wayland compositor global not available");
 
-    if (!xdgWmBase_)
+    if (!role_ && !xdgWmBase_)
         throw WindowException("xdg_wm_base not available (compositor must support xdg-shell)");
 
     surface_ = wl_compositor_create_surface(compositor_);
 
+    if (role_) {
+        role_->attach(display_, surface_, &windowDetails_, &windowFlags_);
+    } else {
     xdgSurface_ = xdg_wm_base_get_xdg_surface(xdgWmBase_, surface_);
     xdg_surface_add_listener(xdgSurface_, &xdgSurfaceListener_, this);
 
@@ -205,12 +236,15 @@ void WaylandWindowManager::createWindow(const char* windowName)
             xdgToplevelDecoration_, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
     }
 
+    }
+
     //! Initial commit, then block until the compositor configures the surface.
     wl_surface_commit(surface_);
     wl_display_roundtrip(display_);
-    while (!configured_) 
+    while (!(role_ ? role_->configured() : configured_))
     {
-        wl_display_dispatch(display_);
+        if (shouldClose() || wl_display_dispatch(display_) < 0)
+            throw WindowException("Wayland surface closed before initial configure");
     }
 
     if (seat_) 
@@ -355,16 +389,33 @@ void WaylandWindowManager::pollEvents()
     if (!display_) 
         return;
 
-    wl_display_dispatch_pending(display_);
-
-    if (wl_display_prepare_read(display_) == 0) 
-    {
-        wl_display_flush(display_);
-        wl_display_read_events(display_);
-        wl_display_dispatch_pending(display_);
-    } else {
-        wl_display_dispatch_pending(display_);
+    while (wl_display_prepare_read(display_) != 0) {
+        if (wl_display_dispatch_pending(display_) < 0) {
+            windowShouldClose_ = true;
+            return;
+        }
     }
+
+    if (wl_display_flush(display_) < 0 && errno != EAGAIN) {
+        wl_display_cancel_read(display_);
+        windowShouldClose_ = true;
+        return;
+    }
+
+    //! read_events waits for the compositor; pollEvents must never wait for input.
+    pollfd ready{wl_display_get_fd(display_), POLLIN, 0};
+    const int result = poll(&ready, 1, 0);
+    if (result > 0 && (ready.revents & POLLIN)) {
+        if (wl_display_read_events(display_) < 0)
+            windowShouldClose_ = true;
+    } else {
+        wl_display_cancel_read(display_);
+        if ((result < 0 && errno != EINTR) || (ready.revents & (POLLERR | POLLHUP | POLLNVAL)))
+            windowShouldClose_ = true;
+    }
+
+    if (wl_display_dispatch_pending(display_) < 0)
+        windowShouldClose_ = true;
 }
 
 void WaylandWindowManager::swapBuffers()
@@ -412,6 +463,12 @@ void* WaylandWindowManager::getGLProcAddress(const char* name) const {
 #endif
 }
 
+FramebufferSize WaylandWindowManager::getFramebufferSize() noexcept {
+    const i32 scale = role_ ? std::max(1, role_->bufferScale()) : 1;
+    return {std::max(1, windowDetails_.width) * scale,
+            std::max(1, windowDetails_.height) * scale};
+}
+
 SoftwareFramebuffer WaylandWindowManager::lockFramebuffer() {
     if (graphicsAPI_ != GraphicsAPI::CPU || !shmData_) 
         return {};
@@ -444,7 +501,7 @@ bool WaylandWindowManager::isTextInputEnabled() const noexcept {
     return keyboardListener_ && keyboardListener_->isTextInputEnabled();
 }
 MouseListener& WaylandWindowManager::getMouseListener() noexcept { return *mouseListener_; }
-bool WaylandWindowManager::shouldClose() const { return windowShouldClose_; }
+bool WaylandWindowManager::shouldClose() const { return windowShouldClose_ || (role_ && role_->shouldClose()); }
 WindowBackend WaylandWindowManager::getBackendType() const { return WindowBackend::WAYLAND; }
 GraphicsAPI WaylandWindowManager::getGraphicsAPI() const { return graphicsAPI_; }
 
@@ -521,6 +578,7 @@ WmaCode WaylandWindowManager::destroy()
         xdg_surface_destroy(xdgSurface_);
         xdgSurface_ = nullptr;
     }
+    role_.reset();
     if (surface_) 
     {
         wl_surface_destroy(surface_);
@@ -612,18 +670,23 @@ void WaylandWindowManager::handleSeatCapabilities(void* data, wl_seat* seat,
     } else {
         if (manager->keyboard_) 
         {
+            manager->keyboardListener_->detach();
+            manager->windowFlags_.focused = false;
             wl_keyboard_destroy(manager->keyboard_);
             manager->keyboard_ = nullptr;
         }
     }
 
     if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
-        if (!manager->pointer_)
+        if (!manager->pointer_) {
             manager->pointer_ = wl_seat_get_pointer(seat);
+            manager->mouseListener_->initialize(manager->pointer_, manager->compositor_, manager->shm_);
+        }
 
     } else {
         if (manager->pointer_) 
         {
+            manager->mouseListener_->detach();
             wl_pointer_destroy(manager->pointer_);
             manager->pointer_ = nullptr;
         }
@@ -676,6 +739,12 @@ void WaylandWindowManager::handleXdgToplevelClose(void* data, xdg_toplevel*)
 void WaylandWindowManager::handleXdgToplevelConfigureBounds(void*, xdg_toplevel*,
                                                             i32, i32)
 {
+}
+
+std::unique_ptr<IWindowManager> createWaylandWindowManager(
+    const WindowDetails& details, GraphicsAPI api, std::unique_ptr<WaylandSurfaceRole> role)
+{
+    return std::make_unique<WaylandWindowManager>(details, api, std::move(role));
 }
 
 } // namespace wma

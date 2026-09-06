@@ -4,6 +4,28 @@ All notable changes to libwma are documented in this file.
 
 ## [0.2.1]
 
+### Changed
+
+- **Breaking: `<wma/core/BuildConfig.hpp>` is gone.** `WMA_HAS_*` and
+  `WMA_VERSION_*` are now PUBLIC compile definitions on `wma::wma` instead of
+  a CMake-generated header. The header could not survive the single-prefix
+  install below: one `include/` tree serves every platform, so a generated
+  header could only hold one platform's answers -- a Linux consumer would
+  have read `WMA_HAS_X11` off whichever build installed last. Delete the
+  include; the macros arrive from the target, spelled and valued exactly as
+  before (`#if WMA_HAS_X11` still works, all flags defined as 0 or 1).
+  `<wma/wma.hpp>` now `#error`s if they are absent, so including it without
+  linking `wma::wma` fails loudly instead of silently reporting every backend
+  as unavailable
+- Every platform now installs into **one prefix** instead of a per-platform
+  directory: headers once in `<prefix>/include`, and the library ABI-tagged as
+  `libwma_linux_x86_64.a`, `libwma_android_arm64_v8a.a`, `libwma_wasm32.a`.
+  Each build contributes `wma-targets-<tag>.cmake` plus its own
+  `wma-deps-<tag>.cmake` -- the per-platform `find_dependency()` calls had to
+  move out of `wmaConfig.cmake` for the same reason as the header, since a
+  shared config would carry whichever build ran last and a Linux consumer
+  would skip `find_dependency(X11)`. The version file is `ARCH_INDEPENDENT`
+
 ### Fixed
 
 - `AlsaAudioDevice`: periodic audible pops on a CPU-contended machine. The writer thread ran at ordinary priority with no core of its own, so a busy render thread could starve it past its ~21ms period; the underrun that followed was recovered (`snd_pcm_recover`) but still audible, and silently so — the recovery call passes ALSA's own `silent` flag, so nothing showed up in the log either. Three changes: `kPeriodsOfLatency` raised from 2 to 3, so a missed wakeup is absorbed as latency instead of a dropout; the writer thread now requests `SCHED_FIFO` (best-effort — silently a no-op without `CAP_SYS_NICE`, the common case in a container); and it pins itself to the last CPU via `pthread_setaffinity_np` (skipped below two cores) so unrelated CPU-bound work is scheduled onto a *different* core rather than merely outranked on the same one

@@ -34,9 +34,9 @@ endforeach()
 
 # Metal support: whether this build can honour GraphicsAPI::Metal at all. Apple
 # platforms only, and only through a backend that has a route to a CAMetalLayer
-# (SDL3 anywhere, GLFW on macOS). Exposed to consumers as WMA_HAS_METAL in
-# BuildConfig.hpp, so a renderer can feature-detect instead of duplicating this
-# reasoning against __APPLE__ and the backend list.
+# (SDL3 anywhere, GLFW on macOS). Exposed to consumers as WMA_HAS_METAL, so a
+# renderer can feature-detect instead of duplicating this reasoning against
+# __APPLE__ and the backend list.
 set(WMA_HAS_METAL FALSE)
 if(APPLE AND (WMA_ENABLE_SDL OR WMA_ENABLE_GLFW))
     set(WMA_HAS_METAL TRUE)
@@ -51,22 +51,12 @@ if(APPLE AND (WMA_ENABLE_SDL OR WMA_ENABLE_GLFW))
         "${CMAKE_CURRENT_SOURCE_DIR}/platform/apple/AppleMetalLayer.mm")
 endif()
 
-set(WMA_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
-set(WMA_HAS_GLFW    ${WMA_ENABLE_GLFW})
-set(WMA_HAS_SDL     ${WMA_ENABLE_SDL})
-set(WMA_HAS_X11     ${WMA_ENABLE_X11})
-set(WMA_HAS_WAYLAND ${WMA_ENABLE_WAYLAND})
-set(WMA_HAS_ALSA    ${WMA_ENABLE_ALSA})
-# WMA_HAS_METAL was resolved above; unlike the four backend flags it is not a
-# straight copy of an option, since it depends on the target platform too.
-configure_file(
-    "${PROJECT_SOURCE_DIR}/include/wma/core/BuildConfig.hpp.in"
-    "${WMA_GENERATED_DIR}/wma/core/BuildConfig.hpp"
-    @ONLY
-)
-
 add_library(wma STATIC)
 add_library(wma::wma ALIAS wma)
+
+#! One flat lib directory holds every platform's build, so the ABI tag is in
+#! the filename: libwma_linux_x86_64.a, libwma_wasm32.a, ...
+set_target_properties(wma PROPERTIES OUTPUT_NAME "wma_${WMA_PLATFORM_SUFFIX}")
 
 target_sources(wma
     PRIVATE
@@ -79,20 +69,39 @@ target_sources(wma
             ${PROJECT_SOURCE_DIR}/include
         FILES
             ${WMA_HEADERS}
-
-        FILE_SET generated_headers
-        TYPE HEADERS
-        BASE_DIRS
-            ${WMA_GENERATED_DIR}
-        FILES
-            "${WMA_GENERATED_DIR}/wma/core/BuildConfig.hpp"
 )
 
 target_include_directories(wma
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${WMA_GENERATED_DIR}>
         $<INSTALL_INTERFACE:include>
+)
+
+# Which backends this build contains. PUBLIC compile definitions rather than a
+# generated header: every platform shares one include tree under the install
+# prefix, so a header could not carry per-platform answers. All are defined,
+# 0 or 1, preserving the `#if WMA_HAS_X` spelling the old BuildConfig.hpp used.
+function(_wma_define_flag name value)
+    if(value)
+        target_compile_definitions(wma PUBLIC ${name}=1)
+    else()
+        target_compile_definitions(wma PUBLIC ${name}=0)
+    endif()
+endfunction()
+
+_wma_define_flag(WMA_HAS_GLFW    "${WMA_ENABLE_GLFW}")
+_wma_define_flag(WMA_HAS_SDL     "${WMA_ENABLE_SDL}")
+_wma_define_flag(WMA_HAS_X11     "${WMA_ENABLE_X11}")
+_wma_define_flag(WMA_HAS_WAYLAND "${WMA_ENABLE_WAYLAND}")
+_wma_define_flag(WMA_HAS_ALSA    "${WMA_ENABLE_ALSA}")
+# Resolved above; unlike the flags around it this depends on the target platform,
+# not just on an option.
+_wma_define_flag(WMA_HAS_METAL   "${WMA_HAS_METAL}")
+
+target_compile_definitions(wma PUBLIC
+    WMA_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    WMA_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+    WMA_VERSION_PATCH=${PROJECT_VERSION_PATCH}
 )
 
 target_compile_features(wma

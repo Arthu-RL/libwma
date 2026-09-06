@@ -15,10 +15,10 @@
       "name": "linux-debug",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/linux/debug",
-      "installDir": "$env{LOCAL_PREFIX}/linux/debug",
+      "installDir": "$env{LOCAL_PREFIX}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/linux/debug",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}",
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
         "WMA_ENABLE_X11": "ON",
@@ -30,10 +30,10 @@
       "name": "linux-release",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/linux/release",
-      "installDir": "$env{LOCAL_PREFIX}/linux/release",
+      "installDir": "$env{LOCAL_PREFIX}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/linux/release",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}",
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
         "WMA_ENABLE_X11": "ON",
@@ -45,10 +45,10 @@
       "name": "windows-debug",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/windows/debug",
-      "installDir": "$env{LOCAL_PREFIX}/windows/debug",
+      "installDir": "$env{LOCAL_PREFIX}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/windows/debug",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}",
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
         "WMA_ENABLE_GLFW": "ON"
@@ -58,10 +58,10 @@
       "name": "windows-release",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/windows/release",
-      "installDir": "$env{LOCAL_PREFIX}/windows/release",
+      "installDir": "$env{LOCAL_PREFIX}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/windows/release",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}",
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
         "WMA_ENABLE_GLFW": "ON"
@@ -71,10 +71,10 @@
       "name": "macos-debug",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/macos/debug",
-      "installDir": "$env{LOCAL_PREFIX}/macos/debug",
+      "installDir": "$env{LOCAL_PREFIX}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/macos/debug",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
@@ -85,10 +85,10 @@
       "name": "macos-release",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/macos/release",
-      "installDir": "$env{LOCAL_PREFIX}/macos/release",
+      "installDir": "$env{LOCAL_PREFIX}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/macos/release",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
         "WMA_BUILD_EXAMPLES": "ON",
         "WMA_ENABLE_SDL": "ON",
@@ -99,14 +99,14 @@
       "name": "ios",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/ios",
-      "installDir": "$env{LOCAL_PREFIX}/ios",
+      "installDir": "$env{LOCAL_PREFIX}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_SYSTEM_NAME": "iOS",
         "CMAKE_OSX_SYSROOT": "iphoneos",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "16.3",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/ios",
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}",
         "WMA_ENABLE_SDL": "ON"
       }
     },
@@ -114,37 +114,64 @@
       "name": "android",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/android",
-      "installDir": "$env{LOCAL_PREFIX}/android",
+      "installDir": "$env{LOCAL_PREFIX}",
       "toolchainFile": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "ANDROID_ABI": "arm64-v8a",
         "ANDROID_PLATFORM": "android-29",
         "ANDROID_STL": "c++_shared",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/android"
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX};$env{LOCAL_PREFIX}/android"
       }
     },
     {
       "name": "wasm",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/wasm",
-      "installDir": "$env{LOCAL_PREFIX}/wasm",
+      "installDir": "$env{LOCAL_PREFIX}",
       "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX}/wasm"
+        "CMAKE_PREFIX_PATH": "$env{LOCAL_PREFIX};$env{LOCAL_PREFIX}/wasm"
       }
     }
   ],
   "buildPresets": [
-    {"name": "linux-debug", "configurePreset": "linux-debug"},
-    {"name": "linux-release", "configurePreset": "linux-release"},
-    {"name": "windows-debug", "configurePreset": "windows-debug"},
-    {"name": "windows-release", "configurePreset": "windows-release"},
-    {"name": "macos-debug", "configurePreset": "macos-debug"},
-    {"name": "macos-release", "configurePreset": "macos-release"},
-    {"name": "ios", "configurePreset": "ios"},
-    {"name": "android", "configurePreset": "android"},
-    {"name": "wasm", "configurePreset": "wasm"}
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug"
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release"
+    },
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug"
+    },
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release"
+    },
+    {
+      "name": "macos-debug",
+      "configurePreset": "macos-debug"
+    },
+    {
+      "name": "macos-release",
+      "configurePreset": "macos-release"
+    },
+    {
+      "name": "ios",
+      "configurePreset": "ios"
+    },
+    {
+      "name": "android",
+      "configurePreset": "android"
+    },
+    {
+      "name": "wasm",
+      "configurePreset": "wasm"
+    }
   ]
 }

@@ -46,6 +46,8 @@ public:
                     wl_compositor* compositor = nullptr,
                     wl_shm* shm = nullptr);
 
+    void detach() noexcept;
+
     wl_pointer* getPointer() const { return pointer_; }
 
     void handleEnter(u32 serial, wl_surface* surface, wl_fixed_t x, wl_fixed_t y);

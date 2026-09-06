@@ -14,6 +14,8 @@ struct xkb_compose_state;
 
 namespace wma {
 
+struct WindowFlags;
+
 /**
  * @class WaylandKeyboardListener
  *
@@ -27,10 +29,12 @@ namespace wma {
  */
 class WaylandKeyboardListener : public KeyboardListener {
 public:
-    WaylandKeyboardListener();
+    explicit WaylandKeyboardListener(WindowFlags* flags = nullptr);
     ~WaylandKeyboardListener() override;
 
     void initialize(wl_keyboard* keyboard);
+    void detach() noexcept;
+    void setWindowFlags(WindowFlags* flags) noexcept { windowFlags_ = flags; }
     wl_keyboard* getKeyboard() const { return keyboard_; }
 
     //! Bookkeeping only: there is no on-screen keyboard to raise here, and the
@@ -68,6 +72,7 @@ private:
     xkb_compose_table* composeTable_ = nullptr;
     xkb_compose_state* composeState_ = nullptr;
 
+    WindowFlags* windowFlags_ = nullptr;
     bool textInputEnabled_ = false;
 
     static const wl_keyboard_listener keyboardListener_;

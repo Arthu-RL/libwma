@@ -33,6 +33,8 @@ namespace wma {
 
         virtual void createWindow(const char* windowName) = 0;
 
+        [[nodiscard]] virtual bool transparentFramebuffer() const noexcept { return false; }
+
         /**
          * @brief Run the managed main loop, invoking @p actions once per frame.
          *

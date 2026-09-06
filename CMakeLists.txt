@@ -29,6 +29,10 @@ option(WMA_ENABLE_LTO       "Enable link-time optimization"   ON)
 # that may be installed and shipped. Enable it for machine-local builds.
 option(WMA_NATIVE_OPTIMIZE  "Enable native CPU optimization"  OFF)
 
+include(cmake/PlatformSuffix.cmake)
+wma_platform_suffix(WMA_PLATFORM_SUFFIX)
+message(STATUS "wma: installing as wma_${WMA_PLATFORM_SUFFIX}")
+
 include(cmake/Platform.cmake)
 include(cmake/Compiler.cmake)
 include(cmake/Dependencies.cmake)

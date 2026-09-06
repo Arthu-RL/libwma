@@ -299,7 +299,11 @@ void X11WindowManager::pollEvents()
             case KeyRelease:
                 keyboardListener_->handleKeyEvent(XLookupKeysym(&event.xkey, 0), event.xkey);
                 break;
+            case FocusIn:
+                windowFlags_.focused = true;
+                break;
             case FocusOut:
+                windowFlags_.focused = false;
                 //! See FocusChangeMask in createWindow().
                 keyboardListener_->releaseAllKeys();
                 break;

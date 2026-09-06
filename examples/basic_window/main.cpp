@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     try {
         INK_LOG << wma::getLibraryInfo();
 
-        // Compile-time feature detection (generated <wma/core/BuildConfig.hpp>)
+        // Compile-time feature detection (compile definitions on wma::wma)
         INK_LOG << "Compiled backends -> GLFW:" << WMA_HAS_GLFW
                 << " SDL3:" << WMA_HAS_SDL
                 << " X11:" << WMA_HAS_X11
