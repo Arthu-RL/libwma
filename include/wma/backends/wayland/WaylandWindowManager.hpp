@@ -3,6 +3,7 @@
 
 #include <wayland-client.h>
 #include <memory>
+#include "wma/WaylandSurfaceRole.hpp"
 #include "WaylandMouseListener.hpp"
 #include "WaylandKeyboardListener.hpp"
 #include "wma/backends/wayland/protocols/xdg-shell-client-protocol.h"
@@ -14,7 +15,8 @@ namespace wma {
 class WaylandWindowManager : public IWindowManager {
 public:
     explicit WaylandWindowManager(const WindowDetails& windowDetails,
-                                  GraphicsAPI graphicsAPI = GraphicsAPI::Vulkan);
+                                  GraphicsAPI graphicsAPI = GraphicsAPI::Vulkan,
+                                  std::unique_ptr<WaylandSurfaceRole> role = {});
     ~WaylandWindowManager() override;
 
     WaylandWindowManager(const WaylandWindowManager&) = delete;
@@ -23,12 +25,14 @@ public:
     WaylandWindowManager& operator=(WaylandWindowManager&&) noexcept;
 
     void createWindow(const char* windowName) override;
+    bool transparentFramebuffer() const noexcept override { return role_ && role_->transparentFramebuffer(); }
     void pollEvents() override;
     void swapBuffers() override;
     void* getWindowInstance() override;
     void* getNativeDisplayHandle() const noexcept override;
     void* getGLProcAddress(const char* name) const override;
     SoftwareFramebuffer lockFramebuffer() override;
+    FramebufferSize getFramebufferSize() noexcept override;
     void presentFramebuffer() override;
     WindowFlags* getWindowFlags() noexcept override;
     const WindowDetails* getWindowDetails() noexcept override;
@@ -46,6 +50,7 @@ public:
     wl_surface* getSurface() const { return surface_; }
 
 private:
+    std::unique_ptr<WaylandSurfaceRole> role_;
     void rebindListeners() noexcept;
     wl_display* display_;
     wl_registry* registry_;
