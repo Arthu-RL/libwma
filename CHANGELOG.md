@@ -2,6 +2,12 @@
 
 All notable changes to libwma are documented in this file.
 
+## [0.3.0]
+
+### Added
+
+- **Wayland: application-owned surface roles.** `createWaylandWindowManager(details, api, role)` takes an optional `WaylandSurfaceRole` -- a virtual interface a consumer implements to claim a fresh, uncommitted `wl_surface` for something other than an `xdg_toplevel`. libwma keeps the connection, the surface, seat input, event dispatch and native rendering handles; the role owns its own protocol objects, configure acknowledgement, logical dimensions, scale and close state (`attach()`/`rebind()`/`configured()`/`shouldClose()`), so a consumer such as libaurashell can build layer-shell surfaces (panels, overlays, lock screens) without libwma linking layer-shell protocol headers itself. `createWindow()` skips `xdg_wm_base`/`xdg_toplevel` entirely when a role is supplied and blocks on `role->configured()` in its place; that initial-configure wait now also throws a `WindowException` if the surface is asked to close before it ever configures, rather than spinning on `wl_display_dispatch` forever. New `IWindowManager::transparentFramebuffer()` (defaults `false`) and the Wayland backend's `getFramebufferSize()` defer to the role's own `transparentFramebuffer()`/`bufferScale()` -- the latter scales `WindowDetails`' logical width/height, since a role can run fractional-scale bookkeeping the base manager has no visibility into. Custom roles currently support `GraphicsAPI::Vulkan` only; any other API throws a `GraphicsException` at `createWindow()` rather than opening a surface nothing can draw into. Aura3D's `Engine` takes the factory through its own `(config, configPath, factory)` constructor, keeping layer-shell policy a consumer concern. Documented in `docs/wayland-surface-roles.md`
+
 ## [0.2.1]
 
 ### Changed
